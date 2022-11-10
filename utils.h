@@ -3,4 +3,9 @@
 
 double degrees_to_radians(double degrees);
 
+double random_double(void);
+double random_double_in_range(double min, double max);
+
+double clamp(double x, double min, double max);
+
 #endif /* INCLUDED_UTILS_H */
