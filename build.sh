@@ -2,7 +2,7 @@
 
 CC=${CC:-"gcc"}
 CFLAGS=${CFLAGS:-"-Wall -Wextra -std=c18 -g"}
-LDFLAGS=${LDFLAGS:-""}
+LDFLAGS=${LDFLAGS:-"-lm"}
 MAIN_FILE=${MAIN_FILE:-"main.c"}
 
 # Write out compile_flags.txt for clangd

@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include "color.h"
+
 int main(void) {
   const int image_width = 256;
   const int image_height = 256;
@@ -9,15 +11,12 @@ int main(void) {
   for (int j = image_height - 1; j >= 0; --j) {
     fprintf(stderr, "\rScanlines remaining: %d      ", j);
     for (int i = 0; i < image_width; ++i) {
-      double r = (double)(i) / (image_width - 1);
-      double g = (double)(j) / (image_height - 1);
-      double b = 0.25;
-
-      int ir = (int)(255.999 * r);
-      int ig = (int)(255.999 * g);
-      int ib = (int)(255.999 * b);
-
-      printf("%d %d %d\n", ir, ig, ib);
+      color pixel_color = {
+          .r = (double)(i) / (image_width - 1),
+          .g = (double)(j) / (image_height - 1),
+          .b = 0.25,
+      };
+      color_write(stdout, pixel_color);
     }
   }
 
@@ -25,3 +24,7 @@ int main(void) {
 
   return 0;
 }
+
+#include "color.c"
+#include "point3.c"
+#include "vec3.c"
