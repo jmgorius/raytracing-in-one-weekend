@@ -4,11 +4,11 @@
 #include "point3.h"
 #include "vec3.h"
 
-typedef struct ray {
-  point3 origin;
-  vec3 direction;
-} ray;
+typedef struct Ray {
+  Point3 origin;
+  Vec3 direction;
+} Ray;
 
-point3 ray_at(ray r, double t);
+Point3 ray_at(Ray r, double t);
 
 #endif /* INCLUDED_RAY_H */

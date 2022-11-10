@@ -3,12 +3,12 @@
 
 #include <stdio.h>
 
-typedef struct color {
+typedef struct Color {
   double r, g, b;
-} color;
+} Color;
 
-color color_lerp(color c1, color c2, double t);
+Color color_lerp(Color c1, Color c2, double t);
 
-void color_write(FILE *out, color c);
+void color_write(FILE *out, Color c);
 
 #endif /* INCLUDED_COLOR_H */
