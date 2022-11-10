@@ -1,0 +1,10 @@
+build/
+
+*.ppm
+
+.clangd/
+.cache/
+.vs/
+.vscode/
+
+compile_flags.txt
