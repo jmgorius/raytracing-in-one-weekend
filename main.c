@@ -6,6 +6,7 @@
 #include "camera.h"
 #include "color.h"
 #include "hittable.h"
+#include "material.h"
 #include "point3.h"
 #include "ray.h"
 #include "utils.h"
@@ -17,12 +18,13 @@ Color ray_color(Ray r, const Hittable *world, int depth) {
 
   HitRecord record;
   if (hittable_hit(world, r, 0.001, DBL_MAX, &record)) {
-    Point3 target = point3_add(
-        record.p, vec3_add(record.normal, vec3_random_unit_vector()));
-    return color_mul(0.5,
-                     ray_color((Ray){record.p, point3_sub(target, record.p)},
-                               world, depth - 1));
+    Ray scattered;
+    Color attenuation;
+    if (material_scatter(record.material, r, &record, &attenuation, &scattered))
+      return color_mul(attenuation, ray_color(scattered, world, depth - 1));
+    return (Color){0, 0, 0};
   }
+
   Vec3 unit_direction = vec3_normalize(r.direction);
   double t = 0.5 * (unit_direction.y + 1.0);
   Color gradient1 = {1.0, 1.0, 1.0};
@@ -39,19 +41,48 @@ int main(void) {
   const int max_depth = 50;
 
   /* World */
+
   HittableList world = {.type = HITTABLE_LIST};
-  Sphere sphere1 = {
+
+  Lambertian material_ground = {.type = MATERIAL_LAMBERTIAN,
+                                .albedo = (Color){0.8, 0.8, 0.0}};
+  Lambertian material_center = {.type = MATERIAL_LAMBERTIAN,
+                                .albedo = (Color){0.7, 0.3, 0.3}};
+  Metal material_left = {.type = MATERIAL_METAL,
+                         .albedo = (Color){0.8, 0.8, 0.8},
+                         .fuzziness = 0.3};
+  Metal material_right = {.type = MATERIAL_METAL,
+                          .albedo = (Color){0.8, 0.6, 0.2},
+                          .fuzziness = 1.0};
+
+  Sphere sphere_ground = {
       .type = HITTABLE_SPHERE,
-      .center = (Point3){0, 0, -1},
+      .center = (Point3){0.0, -100.5, -1},
+      .radius = 100.0,
+      .material = (const Material *)&material_ground,
+  };
+  Sphere sphere_center = {
+      .type = HITTABLE_SPHERE,
+      .center = (Point3){0.0, 0.0, -1.0},
       .radius = 0.5,
+      .material = (const Material *)&material_center,
   };
-  Sphere sphere2 = {
+  Sphere sphere_left = {
       .type = HITTABLE_SPHERE,
-      .center = (Point3){0, -100.5, -1},
-      .radius = 100,
+      .center = (Point3){-1.0, 0.0, -1.0},
+      .radius = 0.5,
+      .material = (const Material *)&material_left,
   };
-  hittable_list_add(&world, (const Hittable *)&sphere1);
-  hittable_list_add(&world, (const Hittable *)&sphere2);
+  Sphere sphere_right = {
+      .type = HITTABLE_SPHERE,
+      .center = (Point3){1.0, 0.0, -1.0},
+      .radius = 0.5,
+      .material = (const Material *)&material_right,
+  };
+  hittable_list_add(&world, (const Hittable *)&sphere_ground);
+  hittable_list_add(&world, (const Hittable *)&sphere_center);
+  hittable_list_add(&world, (const Hittable *)&sphere_left);
+  hittable_list_add(&world, (const Hittable *)&sphere_right);
 
   /* Camera */
   Camera camera;
@@ -84,6 +115,7 @@ int main(void) {
 #include "camera.c"
 #include "color.c"
 #include "hittable.c"
+#include "material.c"
 #include "point3.c"
 #include "ray.c"
 #include "utils.c"

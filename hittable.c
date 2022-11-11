@@ -87,5 +87,6 @@ bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
   Vec3 outward_normal =
       vec3_div(point3_sub(record->p, sphere->center), sphere->radius);
   hit_record_set_face_normal(record, r, outward_normal);
+  record->material = sphere->material;
   return true;
 }

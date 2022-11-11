@@ -8,7 +8,7 @@ typedef struct Color {
 } Color;
 
 Color color_add(Color c1, Color c2);
-Color color_mul(double t, Color c);
+Color color_mul(Color c1, Color c2);
 
 Color color_lerp(Color c1, Color c2, double t);
 

@@ -1,6 +1,8 @@
 #ifndef INCLUDED_VEC3_H
 #define INCLUDED_VEC3_H
 
+#include <stdbool.h>
+
 typedef struct Vec3 {
   double x, y, z;
 } Vec3;
@@ -23,5 +25,9 @@ Vec3 vec3_random(void);
 Vec3 vec3_random_in_range(double min, double max);
 Vec3 vec3_random_in_unit_sphere(void);
 Vec3 vec3_random_unit_vector(void);
+
+bool vec3_is_near_zero(Vec3 v);
+
+Vec3 vec3_reflect(Vec3 v, Vec3 n);
 
 #endif /* INCLUDED_VEC3_H */

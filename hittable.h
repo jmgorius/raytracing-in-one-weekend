@@ -4,11 +4,13 @@
 #include "point3.h"
 #include "ray.h"
 #include "vec3.h"
+#include "material.h"
 
 #include <stdbool.h>
 #include <stddef.h>
 
 typedef struct HitRecord {
+  const Material *material;
   Point3 p;
   Vec3 normal;
   double t;
@@ -43,6 +45,7 @@ void hittable_list_free(HittableList *list);
 
 typedef struct Sphere {
   HittableType type;
+  const Material *material;
   Point3 center;
   double radius;
 } Sphere;

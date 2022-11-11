@@ -63,3 +63,13 @@ Vec3 vec3_random_in_unit_sphere(void) {
 Vec3 vec3_random_unit_vector(void) {
   return vec3_normalize(vec3_random_in_unit_sphere());
 }
+
+bool vec3_is_near_zero(Vec3 v) {
+  static const double threshold = 1e-8;
+  return (fabs(v.x) < threshold) && (fabs(v.y) < threshold) &&
+         (fabs(v.z) < threshold);
+}
+
+Vec3 vec3_reflect(Vec3 v, Vec3 n) {
+  return vec3_sub(v, vec3_mul(2 * vec3_dot(v, n), n));
+}
