@@ -11,11 +11,17 @@
 #include "utils.h"
 #include "vec3.h"
 
-Color ray_color(Ray r, Hittable world) {
+Color ray_color(Ray r, Hittable world, int depth) {
+  if (depth <= 0)
+    return (Color){0, 0, 0};
+
   HitRecord record;
   if (hittable_hit(&world, r, 0, DBL_MAX, &record)) {
-    return (Color){0.5 * (record.normal.x + 1), 0.5 * (record.normal.y + 1),
-                   0.5 * (record.normal.z + 1)};
+    Point3 target = point3_add(
+        record.p, vec3_add(record.normal, vec3_random_in_unit_sphere()));
+    return color_mul(0.5,
+                     ray_color((Ray){record.p, point3_sub(target, record.p)},
+                               world, depth - 1));
   }
   Vec3 unit_direction = vec3_normalize(r.direction);
   double t = 0.5 * (unit_direction.y + 1.0);
@@ -30,6 +36,7 @@ int main(void) {
   const int image_width = 256;
   const int image_height = (int)(image_width / aspect_ratio);
   const int samples_per_pixel = 100;
+  const int max_depth = 50;
 
   /* World */
   HittableList object_list = {0};
@@ -57,7 +64,7 @@ int main(void) {
         double u = (i + random_double()) / (image_width - 1);
         double v = (j + random_double()) / (image_height - 1);
         Ray r = camera_get_ray(&camera, u, v);
-        pixel_color = color_add(pixel_color, ray_color(r, world));
+        pixel_color = color_add(pixel_color, ray_color(r, world, max_depth));
       }
       color_write(stdout, pixel_color, samples_per_pixel);
     }

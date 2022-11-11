@@ -7,6 +7,10 @@ Color color_add(Color c1, Color c2) {
   return (Color){c1.r + c2.r, c1.g + c2.g, c1.b + c2.b};
 }
 
+Color color_mul(double t, Color c) {
+  return (Color){t * c.r, t * c.g, t * c.b};
+}
+
 Color color_lerp(Color c1, Color c2, double t) {
   return (Color){
       (1.0 - t) * c1.r + t * c2.r,

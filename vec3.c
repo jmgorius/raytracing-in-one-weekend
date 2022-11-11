@@ -1,4 +1,5 @@
 #include "vec3.h"
+#include "utils.h"
 
 #include <math.h>
 
@@ -32,4 +33,29 @@ Vec3 vec3_cross(Vec3 v1, Vec3 v2) {
       v1.z * v2.x - v1.x * v2.z,
       v1.x * v2.y - v1.y * v2.x,
   };
+}
+
+Vec3 vec3_random(void) {
+  return (Vec3){
+      random_double(),
+      random_double(),
+      random_double(),
+  };
+}
+
+Vec3 vec3_random_in_range(double min, double max) {
+  return (Vec3){
+      random_double_in_range(min, max),
+      random_double_in_range(min, max),
+      random_double_in_range(min, max),
+  };
+}
+
+Vec3 vec3_random_in_unit_sphere(void) {
+  while (1) {
+    Vec3 result = vec3_random_in_range(-1, 1);
+    if (vec3_length2(result) >= 1)
+      continue;
+    return result;
+  }
 }
