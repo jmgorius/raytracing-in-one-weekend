@@ -10,10 +10,13 @@ typedef struct Camera {
   Point3 lower_left_corner;
   Vec3 horizontal;
   Vec3 vertical;
+  Vec3 u, v, w;
+  double lens_radius;
 } Camera;
 
 void camera_init(Camera *camera, Point3 look_from, Point3 look_at, Vec3 up,
-                 double vertical_fov, double aspect_ratio);
+                 double vertical_fov, double aspect_ratio, double aperture,
+                 double focus_distance);
 
 Ray camera_get_ray(const Camera *camera, double s, double t);
 

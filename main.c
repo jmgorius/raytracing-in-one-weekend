@@ -90,9 +90,16 @@ int main(void) {
   hittable_list_add(&world, (const Hittable *)&sphere_right);
 
   /* Camera */
+
+  Point3 look_from = {3.0, 3.0, 2.0};
+  Point3 look_at = {0.0, 0.0, -1.0};
+  Vec3 up = {0.0, 1.0, 0.0};
+  double dist_to_focus = vec3_length(point3_sub(look_from, look_at));
+  double aperture = 2.0;
+
   Camera camera;
-  camera_init(&camera, (Point3){-2.0, 2.0, 1.0}, (Point3){0.0, 0.0, -1.0},
-              (Vec3){0.0, 1.0, 0.0}, 20, aspect_ratio);
+  camera_init(&camera, look_from, look_at, up, 20, aspect_ratio, aperture,
+              dist_to_focus);
 
   printf("P3\n%u %u\n255\n", image_width, image_height);
 

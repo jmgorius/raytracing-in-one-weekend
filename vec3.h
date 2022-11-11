@@ -24,6 +24,7 @@ Vec3 vec3_cross(Vec3 v1, Vec3 v2);
 Vec3 vec3_random(void);
 Vec3 vec3_random_in_range(double min, double max);
 Vec3 vec3_random_in_unit_sphere(void);
+Vec3 vec3_random_in_unit_disk(void);
 Vec3 vec3_random_unit_vector(void);
 
 bool vec3_is_near_zero(Vec3 v);

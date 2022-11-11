@@ -52,9 +52,19 @@ Vec3 vec3_random_in_range(double min, double max) {
 }
 
 Vec3 vec3_random_in_unit_sphere(void) {
-  while (1) {
-    Vec3 result = vec3_random_in_range(-1, 1);
-    if (vec3_length2(result) >= 1)
+  while (true) {
+    Vec3 result = vec3_random_in_range(-1.0, 1.0);
+    if (vec3_length2(result) >= 1.0)
+      continue;
+    return result;
+  }
+}
+
+Vec3 vec3_random_in_unit_disk(void) {
+  while (true) {
+    Vec3 result = (Vec3){random_double_in_range(-1.0, 1.0),
+                         random_double_in_range(-1.0, 1.0), 0.0};
+    if (vec3_length2(result) >= 1.0)
       continue;
     return result;
   }
