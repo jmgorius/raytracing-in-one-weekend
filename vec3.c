@@ -73,3 +73,12 @@ bool vec3_is_near_zero(Vec3 v) {
 Vec3 vec3_reflect(Vec3 v, Vec3 n) {
   return vec3_sub(v, vec3_mul(2 * vec3_dot(v, n), n));
 }
+
+Vec3 vec3_refract(Vec3 uv, Vec3 n, double refraction_ratio) {
+  double cos_theta = fmin(vec3_dot(vec3_neg(uv), n), 1.0);
+  Vec3 r_out_perpendicular =
+      vec3_mul(refraction_ratio, vec3_add(uv, vec3_mul(cos_theta, n)));
+  Vec3 r_out_parallel =
+      vec3_mul(-sqrt(fabs(1.0 - vec3_length2(r_out_perpendicular))), n);
+  return vec3_add(r_out_perpendicular, r_out_parallel);
+}

@@ -29,5 +29,6 @@ Vec3 vec3_random_unit_vector(void);
 bool vec3_is_near_zero(Vec3 v);
 
 Vec3 vec3_reflect(Vec3 v, Vec3 n);
+Vec3 vec3_refract(Vec3 uv, Vec3 n, double refraction_ratio);
 
 #endif /* INCLUDED_VEC3_H */

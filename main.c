@@ -47,13 +47,11 @@ int main(void) {
   Lambertian material_ground = {.type = MATERIAL_LAMBERTIAN,
                                 .albedo = (Color){0.8, 0.8, 0.0}};
   Lambertian material_center = {.type = MATERIAL_LAMBERTIAN,
-                                .albedo = (Color){0.7, 0.3, 0.3}};
-  Metal material_left = {.type = MATERIAL_METAL,
-                         .albedo = (Color){0.8, 0.8, 0.8},
-                         .fuzziness = 0.3};
+                                .albedo = (Color){0.1, 0.2, 0.5}};
+  Dielectric material_left = {.type = MATERIAL_DIELECTRIC, .eta = 1.5};
   Metal material_right = {.type = MATERIAL_METAL,
                           .albedo = (Color){0.8, 0.6, 0.2},
-                          .fuzziness = 1.0};
+                          .fuzziness = 0.0};
 
   Sphere sphere_ground = {
       .type = HITTABLE_SPHERE,
@@ -73,6 +71,12 @@ int main(void) {
       .radius = 0.5,
       .material = (const Material *)&material_left,
   };
+  Sphere sphere_inside_left = {
+      .type = HITTABLE_SPHERE,
+      .center = (Point3){-1.0, 0.0, -1.0},
+      .radius = -0.4,
+      .material = (const Material *)&material_left,
+  };
   Sphere sphere_right = {
       .type = HITTABLE_SPHERE,
       .center = (Point3){1.0, 0.0, -1.0},
@@ -82,6 +86,7 @@ int main(void) {
   hittable_list_add(&world, (const Hittable *)&sphere_ground);
   hittable_list_add(&world, (const Hittable *)&sphere_center);
   hittable_list_add(&world, (const Hittable *)&sphere_left);
+  hittable_list_add(&world, (const Hittable *)&sphere_inside_left);
   hittable_list_add(&world, (const Hittable *)&sphere_right);
 
   /* Camera */
