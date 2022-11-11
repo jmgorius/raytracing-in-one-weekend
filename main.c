@@ -74,7 +74,7 @@ int main(void) {
   Sphere sphere_inside_left = {
       .type = HITTABLE_SPHERE,
       .center = (Point3){-1.0, 0.0, -1.0},
-      .radius = -0.4,
+      .radius = -0.45,
       .material = (const Material *)&material_left,
   };
   Sphere sphere_right = {
@@ -91,7 +91,8 @@ int main(void) {
 
   /* Camera */
   Camera camera;
-  camera_init(&camera, aspect_ratio);
+  camera_init(&camera, (Point3){-2.0, 2.0, 1.0}, (Point3){0.0, 0.0, -1.0},
+              (Vec3){0.0, 1.0, 0.0}, 20, aspect_ratio);
 
   printf("P3\n%u %u\n255\n", image_width, image_height);
 
