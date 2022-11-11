@@ -1,6 +1,7 @@
 #include "color.h"
 #include "utils.h"
 
+#include <math.h>
 #include <stdio.h>
 
 Color color_add(Color c1, Color c2) {
@@ -21,9 +22,9 @@ Color color_lerp(Color c1, Color c2, double t) {
 
 void color_write(FILE *out, Color c, int samples_per_pixel) {
   double scale = 1.0 / samples_per_pixel;
-  double r = c.r * scale;
-  double g = c.g * scale;
-  double b = c.b * scale;
+  double r = sqrt(c.r * scale);
+  double g = sqrt(c.g * scale);
+  double b = sqrt(c.b * scale);
 
   int ir = (int)(256 * clamp(r, 0.0, 0.999));
   int ig = (int)(256 * clamp(g, 0.0, 0.999));

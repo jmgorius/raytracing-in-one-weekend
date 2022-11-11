@@ -16,7 +16,7 @@ Color ray_color(Ray r, Hittable world, int depth) {
     return (Color){0, 0, 0};
 
   HitRecord record;
-  if (hittable_hit(&world, r, 0, DBL_MAX, &record)) {
+  if (hittable_hit(&world, r, 0.001, DBL_MAX, &record)) {
     Point3 target = point3_add(
         record.p, vec3_add(record.normal, vec3_random_in_unit_sphere()));
     return color_mul(0.5,
