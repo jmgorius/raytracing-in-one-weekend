@@ -22,5 +22,6 @@ Vec3 vec3_cross(Vec3 v1, Vec3 v2);
 Vec3 vec3_random(void);
 Vec3 vec3_random_in_range(double min, double max);
 Vec3 vec3_random_in_unit_sphere(void);
+Vec3 vec3_random_unit_vector(void);
 
 #endif /* INCLUDED_VEC3_H */

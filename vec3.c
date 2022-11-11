@@ -59,3 +59,7 @@ Vec3 vec3_random_in_unit_sphere(void) {
     return result;
   }
 }
+
+Vec3 vec3_random_unit_vector(void) {
+  return vec3_normalize(vec3_random_in_unit_sphere());
+}
