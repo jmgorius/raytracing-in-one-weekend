@@ -11,12 +11,12 @@
 #include "utils.h"
 #include "vec3.h"
 
-Color ray_color(Ray r, Hittable world, int depth) {
+Color ray_color(Ray r, const Hittable *world, int depth) {
   if (depth <= 0)
     return (Color){0, 0, 0};
 
   HitRecord record;
-  if (hittable_hit(&world, r, 0.001, DBL_MAX, &record)) {
+  if (hittable_hit(world, r, 0.001, DBL_MAX, &record)) {
     Point3 target = point3_add(
         record.p, vec3_add(record.normal, vec3_random_unit_vector()));
     return color_mul(0.5,
@@ -39,16 +39,19 @@ int main(void) {
   const int max_depth = 50;
 
   /* World */
-  HittableList object_list = {0};
-  hittable_list_add(&object_list, make_hittable_sphere(&(Sphere){
-                                      .center = (Point3){0, 0, -1},
-                                      .radius = 0.5,
-                                  }));
-  hittable_list_add(&object_list, make_hittable_sphere(&(Sphere){
-                                      .center = (Point3){0, -100.5, -1},
-                                      .radius = 100,
-                                  }));
-  Hittable world = make_hittable_list(&object_list);
+  HittableList world = {.type = HITTABLE_LIST};
+  Sphere sphere1 = {
+      .type = HITTABLE_SPHERE,
+      .center = (Point3){0, 0, -1},
+      .radius = 0.5,
+  };
+  Sphere sphere2 = {
+      .type = HITTABLE_SPHERE,
+      .center = (Point3){0, -100.5, -1},
+      .radius = 100,
+  };
+  hittable_list_add(&world, (const Hittable *)&sphere1);
+  hittable_list_add(&world, (const Hittable *)&sphere2);
 
   /* Camera */
   Camera camera;
@@ -64,7 +67,8 @@ int main(void) {
         double u = (i + random_double()) / (image_width - 1);
         double v = (j + random_double()) / (image_height - 1);
         Ray r = camera_get_ray(&camera, u, v);
-        pixel_color = color_add(pixel_color, ray_color(r, world, max_depth));
+        pixel_color = color_add(
+            pixel_color, ray_color(r, (const Hittable *)&world, max_depth));
       }
       color_write(stdout, pixel_color, samples_per_pixel);
     }
@@ -72,7 +76,7 @@ int main(void) {
 
   fprintf(stderr, "\nDone.\n");
 
-  hittable_list_free(&object_list);
+  hittable_list_free(&world);
 
   return 0;
 }

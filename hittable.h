@@ -24,31 +24,28 @@ typedef enum HittableType {
 
 typedef struct Hittable {
   HittableType type;
-  const void *data;
 } Hittable;
 
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record);
 
 typedef struct HittableList {
-  Hittable *objects;
+  HittableType type;
+  const Hittable **objects;
   size_t size;
   size_t capacity;
 } HittableList;
 
-Hittable make_hittable_list(const HittableList *list);
-
-void hittable_list_add(HittableList *list, Hittable hittable);
+void hittable_list_add(HittableList *list, const Hittable *hittable);
 bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
                        double t_max, HitRecord *record);
-                       void hittable_list_free(HittableList *list);
+void hittable_list_free(HittableList *list);
 
 typedef struct Sphere {
+  HittableType type;
   Point3 center;
   double radius;
 } Sphere;
-
-Hittable make_hittable_sphere(const Sphere *sphere);
 
 bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
                 HitRecord *record);

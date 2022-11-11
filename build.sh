@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CC=${CC:-"gcc"}
-CFLAGS=${CFLAGS:-"-Wall -Wextra -std=gnu18 -g -fsanitize=address"}
+CFLAGS=${CFLAGS:-"-Wall -Wextra -std=gnu18 -fno-strict-aliasing -g"}
 LDFLAGS=${LDFLAGS:-"-lm"}
 MAIN_FILE=${MAIN_FILE:-"main.c"}
 

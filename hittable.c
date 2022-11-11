@@ -15,25 +15,22 @@ bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record) {
   switch (hittable->type) {
   case HITTABLE_LIST:
-    return hittable_list_hit(hittable->data, r, t_min, t_max, record);
+    return hittable_list_hit((const HittableList *)hittable, r, t_min, t_max,
+                             record);
   case HITTABLE_SPHERE:
-    return sphere_hit(hittable->data, r, t_min, t_max, record);
+    return sphere_hit((const Sphere *)hittable, r, t_min, t_max, record);
   }
   return false;
 }
 
-Hittable make_hittable_list(const HittableList *list) {
-  return (Hittable){.type = HITTABLE_LIST, .data = list};
-}
-
 static void hittable_list_grow(HittableList *list, size_t n) {
   if (list->objects) {
-    list->objects = realloc(list->objects, n);
+    list->objects = realloc(list->objects, n * sizeof(Hittable *));
     if (!list->objects)
       abort();
     list->capacity = n;
   } else {
-    list->objects = malloc(n * sizeof(Hittable));
+    list->objects = malloc(n * sizeof(Hittable *));
     if (!list->objects)
       abort();
     list->capacity = n;
@@ -41,7 +38,7 @@ static void hittable_list_grow(HittableList *list, size_t n) {
   }
 }
 
-void hittable_list_add(HittableList *list, Hittable hittable) {
+void hittable_list_add(HittableList *list, const Hittable *hittable) {
   if (list->capacity == list->size)
     hittable_list_grow(list, list->capacity == 0 ? 16 : list->capacity);
   list->objects[list->size++] = hittable;
@@ -53,7 +50,7 @@ bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
   double closest_so_far = t_max;
 
   for (size_t i = 0; i < list->size; ++i) {
-    if (hittable_hit(&list->objects[i], r, t_min, closest_so_far, record)) {
+    if (hittable_hit(list->objects[i], r, t_min, closest_so_far, record)) {
       hit_anything = true;
       closest_so_far = record->t;
     }
@@ -65,10 +62,6 @@ bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
 void hittable_list_free(HittableList *list) {
   free(list->objects);
   list->objects = 0;
-}
-
-Hittable make_hittable_sphere(const Sphere *sphere) {
-  return (Hittable){.type = HITTABLE_SPHERE, sphere};
 }
 
 bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
