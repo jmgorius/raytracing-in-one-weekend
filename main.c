@@ -35,14 +35,14 @@ static Color ray_color(Ray r, const Hittable *world, int depth) {
 }
 
 static const Hittable *generate_random_scene(Arena *arena) {
-  static HittableList world = {.type = HITTABLE_LIST};
+  HittableList *world = hittable_list_create(arena);
 
   const Lambertian *ground_material =
       lambertian_create((Color){0.5, 0.5, 0.5}, arena);
   const Sphere *ground_sphere =
       sphere_create((Point3){0.0, -1000.0, 0.0}, 1000.0,
                     (const Material *)ground_material, arena);
-  hittable_list_add(&world, (const Hittable *)ground_sphere, arena);
+  hittable_list_add(world, (const Hittable *)ground_sphere, arena);
 
   const Dielectric *glass = dielectric_create(1.5, arena);
 
@@ -61,18 +61,18 @@ static const Hittable *generate_random_scene(Arena *arena) {
           const MovingSphere *sphere =
               moving_sphere_create(center, center2, 0.0, 1.0, 0.2,
                                    (const Material *)material, arena);
-          hittable_list_add(&world, (const Hittable *)sphere, arena);
+          hittable_list_add(world, (const Hittable *)sphere, arena);
         } else if (choose_material < 0.95) {
           const Metal *material =
               metal_create(color_random_in_range(0.5, 1),
                            random_double_in_range(0.5, 1.0), arena);
           const Sphere *sphere =
               sphere_create(center, 0.2, (const Material *)material, arena);
-          hittable_list_add(&world, (const Hittable *)sphere, arena);
+          hittable_list_add(world, (const Hittable *)sphere, arena);
         } else {
           const Sphere *sphere =
               sphere_create(center, 0.2, (const Material *)glass, arena);
-          hittable_list_add(&world, (const Hittable *)sphere, arena);
+          hittable_list_add(world, (const Hittable *)sphere, arena);
         }
       }
     }
@@ -84,18 +84,22 @@ static const Hittable *generate_random_scene(Arena *arena) {
 
   const Sphere *sphere1 = sphere_create((Point3){0.0, 1.0, 0.0}, 1.0,
                                         (const Material *)glass, arena);
-  hittable_list_add(&world, (const Hittable *)sphere1, arena);
+  hittable_list_add(world, (const Hittable *)sphere1, arena);
   const Sphere *sphere2 = sphere_create((Point3){-4.0, 1.0, 0.0}, 1.0,
                                         (const Material *)lambertian, arena);
-  hittable_list_add(&world, (const Hittable *)sphere2, arena);
+  hittable_list_add(world, (const Hittable *)sphere2, arena);
   const Sphere *sphere3 = sphere_create((Point3){4.0, 1.0, 0.0}, 1.0,
                                         (const Material *)metal, arena);
-  hittable_list_add(&world, (const Hittable *)sphere3, arena);
+  hittable_list_add(world, (const Hittable *)sphere3, arena);
 
-  return (const Hittable *)&world;
+  BVHNode *bvh_root =
+      bvh_node_create(world->objects, 0, world->size, 0.0, 1.0, arena);
+  return (const Hittable *)bvh_root;
 }
 
 int main(void) {
+  srand(42);
+
   /* Memory management */
 
   const unsigned int buffer_size = 1 * 1024 * 1024;
@@ -152,6 +156,7 @@ int main(void) {
   return 0;
 }
 
+#include "aabb.c"
 #include "arena.c"
 #include "camera.c"
 #include "color.c"

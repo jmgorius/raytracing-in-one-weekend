@@ -11,6 +11,10 @@ double random_double_in_range(double min, double max) {
   return min + (max - min) * random_double();
 }
 
+int random_int_in_range(int min, int max) {
+  return (int)(random_double_in_range(min, max + 1));
+}
+
 double clamp(double x, double min, double max) {
   if (x < min)
     return min;
