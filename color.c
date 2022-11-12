@@ -12,6 +12,18 @@ Color color_mul(Color c1, Color c2) {
   return (Color){c1.r * c2.r, c1.g * c2.g, c1.b * c2.b};
 }
 
+Color color_random(void) {
+  return (Color){random_double_in_range(0.0, 1.0),
+                 random_double_in_range(0.0, 1.0),
+                 random_double_in_range(0.0, 1.0)};
+}
+
+Color color_random_in_range(double min, double max) {
+  return (Color){random_double_in_range(min, max),
+                 random_double_in_range(min, max),
+                 random_double_in_range(min, max)};
+}
+
 Color color_lerp(Color c1, Color c2, double t) {
   return (Color){
       (1.0 - t) * c1.r + t * c2.r,

@@ -1,6 +1,6 @@
 build/
 
-*.ppm
+output.ppm
 
 .clangd/
 .cache/
