@@ -1,10 +1,11 @@
 #ifndef INCLUDED_HITTABLE_H
 #define INCLUDED_HITTABLE_H
 
+#include "arena.h"
+#include "material.h"
 #include "point3.h"
 #include "ray.h"
 #include "vec3.h"
-#include "material.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -38,10 +39,10 @@ typedef struct HittableList {
   size_t capacity;
 } HittableList;
 
-void hittable_list_add(HittableList *list, const Hittable *hittable);
+void hittable_list_add(HittableList *list, const Hittable *hittable,
+                       Arena *arena);
 bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
                        double t_max, HitRecord *record);
-void hittable_list_free(HittableList *list);
 
 typedef struct Sphere {
   HittableType type;

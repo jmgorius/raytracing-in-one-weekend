@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "arena.h"
 #include "camera.h"
 #include "color.h"
 #include "hittable.h"
@@ -33,19 +34,17 @@ static Color ray_color(Ray r, const Hittable *world, int depth) {
   return color_lerp(gradient1, gradient2, t);
 }
 
-static const Hittable *generate_random_scene(void) {
+static const Hittable *generate_random_scene(Arena *arena) {
   static HittableList world = {.type = HITTABLE_LIST};
-
-  /* FIXME: Use arena allocators to be able to free memory */
 
   static Lambertian ground_material = {.type = MATERIAL_LAMBERTIAN,
                                        .albedo = (Color){0.5, 0.5, 0.5}};
-  Sphere *ground_sphere = malloc(sizeof(Sphere));
+  Sphere *ground_sphere = arena_alloc(arena, sizeof(Sphere));
   ground_sphere->type = HITTABLE_SPHERE;
   ground_sphere->center = (Point3){0.0, -1000.0, 0.0};
   ground_sphere->radius = 1000.0;
   ground_sphere->material = (const Material *)&ground_material;
-  hittable_list_add(&world, (const Hittable *)ground_sphere);
+  hittable_list_add(&world, (const Hittable *)ground_sphere, arena);
 
   static Lambertian lambertian = {.type = MATERIAL_LAMBERTIAN,
                                   .albedo = {0.4, 0.2, 0.1}};
@@ -62,66 +61,76 @@ static const Hittable *generate_random_scene(void) {
       if (vec3_length(point3_sub(center, (Point3){4.0, 0.2, 0.0})) > 0.9) {
         if (choose_material < 0.8) {
           Color albedo = color_mul(color_random(), color_random());
-          Lambertian *material = malloc(sizeof(Lambertian));
+          Lambertian *material = arena_alloc(arena, sizeof(Lambertian));
           material->type = MATERIAL_LAMBERTIAN;
           material->albedo = albedo;
 
-          Sphere *sphere = malloc(sizeof(Sphere));
+          Sphere *sphere = arena_alloc(arena, sizeof(Sphere));
           sphere->type = HITTABLE_SPHERE;
           sphere->center = center;
           sphere->radius = 0.2;
           sphere->material = (const Material *)material;
-          hittable_list_add(&world, (const Hittable *)sphere);
+          hittable_list_add(&world, (const Hittable *)sphere, arena);
         } else if (choose_material < 0.95) {
           Color albedo = color_random_in_range(0.5, 1);
           double fuzziness = random_double_in_range(0.5, 1.0);
-          Metal *material = malloc(sizeof(Metal));
+          Metal *material = arena_alloc(arena, sizeof(Metal));
           material->type = MATERIAL_METAL;
           material->albedo = albedo;
           material->fuzziness = fuzziness;
 
-          Sphere *sphere = malloc(sizeof(Sphere));
+          Sphere *sphere = arena_alloc(arena, sizeof(Sphere));
           sphere->type = HITTABLE_SPHERE;
           sphere->center = center;
           sphere->radius = 0.2;
           sphere->material = (const Material *)material;
-          hittable_list_add(&world, (const Hittable *)sphere);
+          hittable_list_add(&world, (const Hittable *)sphere, arena);
         } else {
-          Sphere *sphere = malloc(sizeof(Sphere));
+          Sphere *sphere = arena_alloc(arena, sizeof(Sphere));
           sphere->type = HITTABLE_SPHERE;
           sphere->center = center;
           sphere->radius = 0.2;
           sphere->material = (const Material *)&glass;
-          hittable_list_add(&world, (const Hittable *)sphere);
+          hittable_list_add(&world, (const Hittable *)sphere, arena);
         }
       }
     }
   }
 
-  Sphere *sphere1 = malloc(sizeof(Sphere));
+  Sphere *sphere1 = arena_alloc(arena, sizeof(Sphere));
   sphere1->type = HITTABLE_SPHERE;
   sphere1->center = (Point3){0.0, 1.0, 0.0};
   sphere1->radius = 1.0;
   sphere1->material = (const Material *)&glass;
-  hittable_list_add(&world, (const Hittable *)sphere1);
-  Sphere *sphere2 = malloc(sizeof(Sphere));
+  hittable_list_add(&world, (const Hittable *)sphere1, arena);
+  Sphere *sphere2 = arena_alloc(arena, sizeof(Sphere));
   sphere2->type = HITTABLE_SPHERE;
   sphere2->center = (Point3){-4.0, 1.0, 0.0};
   sphere2->radius = 1.0;
   sphere2->material = (const Material *)&lambertian;
-  hittable_list_add(&world, (const Hittable *)sphere2);
-  Sphere *sphere3 = malloc(sizeof(Sphere));
+  hittable_list_add(&world, (const Hittable *)sphere2, arena);
+  Sphere *sphere3 = arena_alloc(arena, sizeof(Sphere));
   sphere3->type = HITTABLE_SPHERE;
   sphere3->center = (Point3){4.0, 1.0, 0.0};
   sphere3->radius = 1.0;
   sphere3->material = (const Material *)&metal;
-  hittable_list_add(&world, (const Hittable *)sphere3);
+  hittable_list_add(&world, (const Hittable *)sphere3, arena);
 
   return (const Hittable *)&world;
 }
 
 int main(void) {
+  /* Memory management */
+
+  const unsigned int buffer_size = 1 * 1024 * 1024;
+  void *buffer = malloc(buffer_size);
+  if (!buffer)
+    abort();
+  Arena arena = {0};
+  arena_init(&arena, buffer, buffer_size);
+
   /* Image parameters */
+
   const double aspect_ratio = 3.0 / 2.0;
   const int image_width = 1200;
   const int image_height = (int)(image_width / aspect_ratio);
@@ -130,7 +139,7 @@ int main(void) {
 
   /* World */
 
-  const Hittable *world = generate_random_scene();
+  const Hittable *world = generate_random_scene(&arena);
 
   /* Camera */
 
@@ -162,9 +171,12 @@ int main(void) {
 
   fprintf(stderr, "\nDone.\n");
 
+  free(buffer);
+
   return 0;
 }
 
+#include "arena.c"
 #include "camera.c"
 #include "color.c"
 #include "hittable.c"

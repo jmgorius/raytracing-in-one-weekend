@@ -4,6 +4,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 void hit_record_set_face_normal(HitRecord *record, Ray r, Vec3 outward_normal) {
   record->front_face = vec3_dot(r.direction, outward_normal) < 0;
@@ -23,24 +24,24 @@ bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
   return false;
 }
 
-static void hittable_list_grow(HittableList *list, size_t n) {
+static void hittable_list_grow(HittableList *list, size_t n, Arena *arena) {
   if (list->objects) {
-    list->objects = realloc(list->objects, n * sizeof(Hittable *));
-    if (!list->objects)
-      abort();
-    list->capacity = n;
+    const Hittable **new_objects =
+        arena_alloc(arena, (list->capacity + n) * sizeof(Hittable *));
+    memcpy(new_objects, list->objects, list->size * sizeof(Hittable *));
+    list->objects = new_objects;
+    list->capacity += n;
   } else {
-    list->objects = malloc(n * sizeof(Hittable *));
-    if (!list->objects)
-      abort();
+    list->objects = arena_alloc(arena, n * sizeof(Hittable *));
     list->capacity = n;
     list->size = 0;
   }
 }
 
-void hittable_list_add(HittableList *list, const Hittable *hittable) {
+void hittable_list_add(HittableList *list, const Hittable *hittable,
+                       Arena *arena) {
   if (list->capacity == list->size)
-    hittable_list_grow(list, list->capacity == 0 ? 16 : list->capacity);
+    hittable_list_grow(list, list->capacity == 0 ? 16 : list->capacity, arena);
   list->objects[list->size++] = hittable;
 }
 
@@ -57,11 +58,6 @@ bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
   }
 
   return hit_anything;
-}
-
-void hittable_list_free(HittableList *list) {
-  free(list->objects);
-  list->objects = 0;
 }
 
 bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
