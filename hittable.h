@@ -23,6 +23,7 @@ void hit_record_set_face_normal(HitRecord *record, Ray r, Vec3 outward_normal);
 typedef enum HittableType {
   HITTABLE_LIST,
   HITTABLE_SPHERE,
+  HITTABLE_MOVING_SPHERE,
 } HittableType;
 
 typedef struct Hittable {
@@ -55,5 +56,20 @@ Sphere *sphere_create(Point3 center, double radius, const Material *material,
                       Arena *arena);
 bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
                 HitRecord *record);
+
+typedef struct MovingSphere {
+  HittableType type;
+  const Material *material;
+  Point3 center_start, center_end;
+  double start, end;
+  double radius;
+} MovingSphere;
+
+MovingSphere *moving_sphere_create(Point3 center_start, Point3 center_end,
+                                   double start, double end, double radius,
+                                   const Material *material, Arena *arena);
+Point3 moving_sphere_center(const MovingSphere *sphere, double t);
+bool moving_sphere_hit(const MovingSphere *sphere, Ray r, double t_min,
+                       double t_max, HitRecord *record);
 
 #endif /* INCLUDED_HITTABLE_H */

@@ -3,6 +3,7 @@
 #include "point3.h"
 #include "vec3.h"
 
+#include <assert.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,9 @@ bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                              record);
   case HITTABLE_SPHERE:
     return sphere_hit((const Sphere *)hittable, r, t_min, t_max, record);
+  case HITTABLE_MOVING_SPHERE:
+    return moving_sphere_hit((const MovingSphere *)hittable, r, t_min, t_max,
+                             record);
   }
   return false;
 }
@@ -93,6 +97,55 @@ bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
   record->p = ray_at(r, root);
   Vec3 outward_normal =
       vec3_div(point3_sub(record->p, sphere->center), sphere->radius);
+  hit_record_set_face_normal(record, r, outward_normal);
+  record->material = sphere->material;
+  return true;
+}
+
+MovingSphere *moving_sphere_create(Point3 center_start, Point3 center_end,
+                                   double start, double end, double radius,
+                                   const Material *material, Arena *arena) {
+  assert(start <= end);
+  MovingSphere *sphere = arena_alloc(arena, sizeof(MovingSphere));
+  sphere->type = HITTABLE_MOVING_SPHERE;
+  sphere->center_start = center_start;
+  sphere->center_end = center_end;
+  sphere->start = start;
+  sphere->end = end;
+  sphere->radius = radius;
+  sphere->material = material;
+  return sphere;
+}
+
+Point3 moving_sphere_center(const MovingSphere *sphere, double t) {
+  Vec3 dir = point3_sub(sphere->center_end, sphere->center_start);
+  double c = (t - sphere->start) / (sphere->end - sphere->start);
+  return point3_add(sphere->center_start, vec3_mul(c, dir));
+}
+
+bool moving_sphere_hit(const MovingSphere *sphere, Ray r, double t_min,
+                       double t_max, HitRecord *record) {
+  Vec3 oc = point3_sub(r.origin, moving_sphere_center(sphere, r.time));
+  double a = vec3_length2(r.direction);
+  double half_b = vec3_dot(oc, r.direction);
+  double c = vec3_length2(oc) - sphere->radius * sphere->radius;
+  double discriminant = half_b * half_b - a * c;
+  if (discriminant < 0)
+    return false;
+
+  double square_root = sqrt(discriminant);
+  double root = (-half_b - square_root) / a;
+  if (root < t_min || t_max < root) {
+    root = (-half_b + square_root) / a;
+    if (root < t_min || t_max < root)
+      return false;
+  }
+
+  record->t = root;
+  record->p = ray_at(r, root);
+  Vec3 outward_normal =
+      vec3_div(point3_sub(record->p, moving_sphere_center(sphere, r.time)),
+               sphere->radius);
   hit_record_set_face_normal(record, r, outward_normal);
   record->material = sphere->material;
   return true;

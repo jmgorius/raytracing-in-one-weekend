@@ -56,8 +56,11 @@ static const Hittable *generate_random_scene(Arena *arena) {
         if (choose_material < 0.8) {
           const Lambertian *material = lambertian_create(
               color_mul(color_random(), color_random()), arena);
-          const Sphere *sphere =
-              sphere_create(center, 0.2, (const Material *)material, arena);
+          Point3 center2 = point3_add(
+              center, (Vec3){0, random_double_in_range(0.0, 0.5), 0});
+          const MovingSphere *sphere =
+              moving_sphere_create(center, center2, 0.0, 1.0, 0.2,
+                                   (const Material *)material, arena);
           hittable_list_add(&world, (const Hittable *)sphere, arena);
         } else if (choose_material < 0.95) {
           const Metal *material =
@@ -104,10 +107,10 @@ int main(void) {
 
   /* Image parameters */
 
-  const double aspect_ratio = 3.0 / 2.0;
-  const int image_width = 1200;
+  const double aspect_ratio = 16.0 / 9.0;
+  const int image_width = 400;
   const int image_height = (int)(image_width / aspect_ratio);
-  const int samples_per_pixel = 2;
+  const int samples_per_pixel = 100;
   const int max_depth = 50;
 
   /* World */
@@ -124,7 +127,7 @@ int main(void) {
 
   Camera camera;
   camera_init(&camera, look_from, look_at, up, 20, aspect_ratio, aperture,
-              dist_to_focus);
+              dist_to_focus, 0.0, 1.0);
 
   printf("P3\n%u %u\n255\n", image_width, image_height);
 

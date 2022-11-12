@@ -7,6 +7,7 @@
 typedef struct Ray {
   Point3 origin;
   Vec3 direction;
+  double time;
 } Ray;
 
 Point3 ray_at(Ray r, double t);

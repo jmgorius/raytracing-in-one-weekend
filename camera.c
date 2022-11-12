@@ -7,7 +7,8 @@
 
 void camera_init(Camera *camera, Point3 look_from, Point3 look_at, Vec3 up,
                  double vertical_fov, double aspect_ratio, double aperture,
-                 double focus_distance) {
+                 double focus_distance, double shutter_open,
+                 double shutter_close) {
   double theta = degrees_to_radians(vertical_fov);
   double h = tan(theta / 2.0);
   double viewport_height = 2.0 * h;
@@ -26,6 +27,8 @@ void camera_init(Camera *camera, Point3 look_from, Point3 look_at, Vec3 up,
   camera->lower_left_corner = point3_add(camera->origin, vec3_neg(offset));
 
   camera->lens_radius = aperture / 2.0;
+  camera->shutter_open = shutter_open;
+  camera->shutter_close = shutter_close;
 }
 
 Ray camera_get_ray(const Camera *camera, double s, double t) {
@@ -37,7 +40,9 @@ Ray camera_get_ray(const Camera *camera, double s, double t) {
       vec3_add(vec3_mul(s, camera->horizontal), vec3_mul(t, camera->vertical)));
   Vec3 direction = point3_sub(screen_point, camera->origin);
   return (Ray){
-      point3_add(camera->origin, offset),
-      vec3_sub(direction, offset),
+      .origin = point3_add(camera->origin, offset),
+      .direction = vec3_sub(direction, offset),
+      .time =
+          random_double_in_range(camera->shutter_open, camera->shutter_close),
   };
 }

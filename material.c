@@ -41,7 +41,7 @@ bool lambertian_scatter(const Lambertian *lambertian, Ray r,
   if (vec3_is_near_zero(scatter_direction))
     scatter_direction = record->normal;
 
-  *scattered = (Ray){record->p, scatter_direction};
+  *scattered = (Ray){record->p, scatter_direction, r.time};
   *attenuation = lambertian->albedo;
   return true;
 }
@@ -62,6 +62,7 @@ bool metal_scatter(const Metal *metal, Ray r, const struct HitRecord *record,
       record->p,
       vec3_add(reflected,
                vec3_mul(metal->fuzziness, vec3_random_in_unit_sphere())),
+      r.time,
   };
   *attenuation = metal->albedo;
   return vec3_dot(scattered->direction, record->normal) > 0;
@@ -101,6 +102,6 @@ bool dielectric_scatter(const Dielectric *dielectric, Ray r,
   else
     direction = vec3_refract(unit_direction, record->normal, refraction_ratio);
 
-  *scattered = (Ray){record->p, direction};
+  *scattered = (Ray){record->p, direction, r.time};
   return true;
 }
