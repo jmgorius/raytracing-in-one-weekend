@@ -1,4 +1,5 @@
 #include "material.h"
+#include "arena.h"
 #include "hittable.h"
 #include "utils.h"
 #include "vec3.h"
@@ -23,6 +24,13 @@ bool material_scatter(const Material *material, Ray r,
   return false;
 }
 
+Lambertian *lambertian_create(Color albedo, Arena *arena) {
+  Lambertian *lambertian = arena_alloc(arena, sizeof(Lambertian));
+  lambertian->type = MATERIAL_LAMBERTIAN;
+  lambertian->albedo = albedo;
+  return lambertian;
+}
+
 bool lambertian_scatter(const Lambertian *lambertian, Ray r,
                         const HitRecord *record, Color *attenuation,
                         Ray *scattered) {
@@ -38,6 +46,14 @@ bool lambertian_scatter(const Lambertian *lambertian, Ray r,
   return true;
 }
 
+Metal *metal_create(Color albedo, double fuzziness, Arena *arena) {
+  Metal *metal = arena_alloc(arena, sizeof(Metal));
+  metal->type = MATERIAL_METAL;
+  metal->albedo = albedo;
+  metal->fuzziness = fuzziness;
+  return metal;
+}
+
 bool metal_scatter(const Metal *metal, Ray r, const struct HitRecord *record,
                    Color *attenuation, Ray *scattered) {
   Vec3 reflected = vec3_reflect(vec3_normalize(r.direction), record->normal);
@@ -49,6 +65,13 @@ bool metal_scatter(const Metal *metal, Ray r, const struct HitRecord *record,
   };
   *attenuation = metal->albedo;
   return vec3_dot(scattered->direction, record->normal) > 0;
+}
+
+Dielectric *dielectric_create(double eta, Arena *arena) {
+  Dielectric *dielectric = arena_alloc(arena, sizeof(Dielectric));
+  dielectric->type = MATERIAL_DIELECTRIC;
+  dielectric->eta = eta;
+  return dielectric;
 }
 
 static double schlick_reflectance(double cosine, double eta) {

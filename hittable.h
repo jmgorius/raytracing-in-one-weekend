@@ -51,6 +51,8 @@ typedef struct Sphere {
   double radius;
 } Sphere;
 
+Sphere *sphere_create(Point3 center, double radius, const Material *material,
+                      Arena *arena);
 bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
                 HitRecord *record);
 

@@ -1,4 +1,5 @@
 #include "hittable.h"
+#include "arena.h"
 #include "point3.h"
 #include "vec3.h"
 
@@ -58,6 +59,16 @@ bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
   }
 
   return hit_anything;
+}
+
+Sphere *sphere_create(Point3 center, double radius, const Material *material,
+                      Arena *arena) {
+  Sphere *sphere = arena_alloc(arena, sizeof(Sphere));
+  sphere->type = HITTABLE_SPHERE;
+  sphere->center = center;
+  sphere->radius = radius;
+  sphere->material = material;
+  return sphere;
 }
 
 bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,

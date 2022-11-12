@@ -37,20 +37,14 @@ static Color ray_color(Ray r, const Hittable *world, int depth) {
 static const Hittable *generate_random_scene(Arena *arena) {
   static HittableList world = {.type = HITTABLE_LIST};
 
-  static Lambertian ground_material = {.type = MATERIAL_LAMBERTIAN,
-                                       .albedo = (Color){0.5, 0.5, 0.5}};
-  Sphere *ground_sphere = arena_alloc(arena, sizeof(Sphere));
-  ground_sphere->type = HITTABLE_SPHERE;
-  ground_sphere->center = (Point3){0.0, -1000.0, 0.0};
-  ground_sphere->radius = 1000.0;
-  ground_sphere->material = (const Material *)&ground_material;
+  const Lambertian *ground_material =
+      lambertian_create((Color){0.5, 0.5, 0.5}, arena);
+  const Sphere *ground_sphere =
+      sphere_create((Point3){0.0, -1000.0, 0.0}, 1000.0,
+                    (const Material *)ground_material, arena);
   hittable_list_add(&world, (const Hittable *)ground_sphere, arena);
 
-  static Lambertian lambertian = {.type = MATERIAL_LAMBERTIAN,
-                                  .albedo = {0.4, 0.2, 0.1}};
-  static Metal metal = {
-      .type = MATERIAL_METAL, .albedo = {0.7, 0.6, 0.5}, .fuzziness = 0.0};
-  static Dielectric glass = {.type = MATERIAL_DIELECTRIC, .eta = 1.5};
+  const Dielectric *glass = dielectric_create(1.5, arena);
 
   for (int a = -11; a < 11; ++a) {
     for (int b = -11; b < 11; ++b) {
@@ -60,60 +54,39 @@ static const Hittable *generate_random_scene(Arena *arena) {
 
       if (vec3_length(point3_sub(center, (Point3){4.0, 0.2, 0.0})) > 0.9) {
         if (choose_material < 0.8) {
-          Color albedo = color_mul(color_random(), color_random());
-          Lambertian *material = arena_alloc(arena, sizeof(Lambertian));
-          material->type = MATERIAL_LAMBERTIAN;
-          material->albedo = albedo;
-
-          Sphere *sphere = arena_alloc(arena, sizeof(Sphere));
-          sphere->type = HITTABLE_SPHERE;
-          sphere->center = center;
-          sphere->radius = 0.2;
-          sphere->material = (const Material *)material;
+          const Lambertian *material = lambertian_create(
+              color_mul(color_random(), color_random()), arena);
+          const Sphere *sphere =
+              sphere_create(center, 0.2, (const Material *)material, arena);
           hittable_list_add(&world, (const Hittable *)sphere, arena);
         } else if (choose_material < 0.95) {
-          Color albedo = color_random_in_range(0.5, 1);
-          double fuzziness = random_double_in_range(0.5, 1.0);
-          Metal *material = arena_alloc(arena, sizeof(Metal));
-          material->type = MATERIAL_METAL;
-          material->albedo = albedo;
-          material->fuzziness = fuzziness;
-
-          Sphere *sphere = arena_alloc(arena, sizeof(Sphere));
-          sphere->type = HITTABLE_SPHERE;
-          sphere->center = center;
-          sphere->radius = 0.2;
-          sphere->material = (const Material *)material;
+          const Metal *material =
+              metal_create(color_random_in_range(0.5, 1),
+                           random_double_in_range(0.5, 1.0), arena);
+          const Sphere *sphere =
+              sphere_create(center, 0.2, (const Material *)material, arena);
           hittable_list_add(&world, (const Hittable *)sphere, arena);
         } else {
-          Sphere *sphere = arena_alloc(arena, sizeof(Sphere));
-          sphere->type = HITTABLE_SPHERE;
-          sphere->center = center;
-          sphere->radius = 0.2;
-          sphere->material = (const Material *)&glass;
+          const Sphere *sphere =
+              sphere_create(center, 0.2, (const Material *)glass, arena);
           hittable_list_add(&world, (const Hittable *)sphere, arena);
         }
       }
     }
   }
 
-  Sphere *sphere1 = arena_alloc(arena, sizeof(Sphere));
-  sphere1->type = HITTABLE_SPHERE;
-  sphere1->center = (Point3){0.0, 1.0, 0.0};
-  sphere1->radius = 1.0;
-  sphere1->material = (const Material *)&glass;
+  const Lambertian *lambertian =
+      lambertian_create((Color){0.4, 0.2, 0.1}, arena);
+  const Metal *metal = metal_create((Color){0.7, 0.6, 0.5}, 0.0, arena);
+
+  const Sphere *sphere1 = sphere_create((Point3){0.0, 1.0, 0.0}, 1.0,
+                                        (const Material *)glass, arena);
   hittable_list_add(&world, (const Hittable *)sphere1, arena);
-  Sphere *sphere2 = arena_alloc(arena, sizeof(Sphere));
-  sphere2->type = HITTABLE_SPHERE;
-  sphere2->center = (Point3){-4.0, 1.0, 0.0};
-  sphere2->radius = 1.0;
-  sphere2->material = (const Material *)&lambertian;
+  const Sphere *sphere2 = sphere_create((Point3){-4.0, 1.0, 0.0}, 1.0,
+                                        (const Material *)lambertian, arena);
   hittable_list_add(&world, (const Hittable *)sphere2, arena);
-  Sphere *sphere3 = arena_alloc(arena, sizeof(Sphere));
-  sphere3->type = HITTABLE_SPHERE;
-  sphere3->center = (Point3){4.0, 1.0, 0.0};
-  sphere3->radius = 1.0;
-  sphere3->material = (const Material *)&metal;
+  const Sphere *sphere3 = sphere_create((Point3){4.0, 1.0, 0.0}, 1.0,
+                                        (const Material *)metal, arena);
   hittable_list_add(&world, (const Hittable *)sphere3, arena);
 
   return (const Hittable *)&world;
@@ -134,7 +107,7 @@ int main(void) {
   const double aspect_ratio = 3.0 / 2.0;
   const int image_width = 1200;
   const int image_height = (int)(image_width / aspect_ratio);
-  const int samples_per_pixel = 500;
+  const int samples_per_pixel = 2;
   const int max_depth = 50;
 
   /* World */
