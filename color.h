@@ -9,6 +9,7 @@ typedef struct Color {
 
 Color color_add(Color c1, Color c2);
 Color color_mul(Color c1, Color c2);
+Color color_mul_const(double t, Color c);
 
 Color color_random(void);
 Color color_random_in_range(double min, double max);

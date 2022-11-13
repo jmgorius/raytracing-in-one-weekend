@@ -9,6 +9,7 @@
 #include "color.h"
 #include "hittable.h"
 #include "material.h"
+#include "perlin.h"
 #include "point3.h"
 #include "ray.h"
 #include "texture.h"
@@ -17,8 +18,9 @@
 
 #define SCENE_RANDOM 0
 #define SCENE_TWO_SPHERES 1
+#define SCENE_TWO_PERLIN_SPHERES 2
 
-#define SCENE_SELECT SCENE_TWO_SPHERES
+#define SCENE_SELECT SCENE_TWO_PERLIN_SPHERES
 
 static Color ray_color(Ray r, const Hittable *world, int depth) {
   if (depth <= 0)
@@ -120,6 +122,27 @@ static Hittable *two_spheres(Arena *arena) {
   return world;
 }
 
+static Hittable *two_perlin_spheres(Arena *arena) {
+  Hittable *world = hittable_create_hittable_list(arena);
+
+  Texture *perlin_texture =
+      texture_create_perlin_noise(4.0, PERLIN_DEFAULT_POINT_COUNT, arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_sphere((Point3){0.0, -1000.0, 0.0}, 1000.0,
+                             material_create_lambertian(perlin_texture, arena),
+                             arena),
+      arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_sphere((Point3){0.0, 2.0, 0.0}, 2.0,
+                             material_create_lambertian(perlin_texture, arena),
+                             arena),
+      arena);
+
+  return world;
+}
+
 int main(void) {
   srand(42);
 
@@ -161,6 +184,11 @@ int main(void) {
   look_from = (Point3){13.0, 2.0, 3.0};
   look_at = (Point3){0.0, 0.0, 0.0};
   vfov = 20.0;
+#elif SCENE_SELECT == SCENE_TWO_PERLIN_SPHERES
+  world = two_perlin_spheres(&arena);
+  look_from = (Point3){13.0, 2.0, 3.0};
+  look_at = (Point3){0.0, 0.0, 0.0};
+  vfov = 20.0;
 #endif
 
   Vec3 up = {0.0, 1.0, 0.0};
@@ -198,6 +226,7 @@ int main(void) {
 #include "color.c"
 #include "hittable.c"
 #include "material.c"
+#include "perlin.c"
 #include "point3.c"
 #include "ray.c"
 #include "texture.c"

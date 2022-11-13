@@ -12,6 +12,10 @@ Color color_mul(Color c1, Color c2) {
   return (Color){c1.r * c2.r, c1.g * c2.g, c1.b * c2.b};
 }
 
+Color color_mul_const(double t, Color c) {
+  return (Color){t * c.r, t * c.g, t * c.b};
+}
+
 Color color_random(void) {
   return (Color){random_double_in_range(0.0, 1.0),
                  random_double_in_range(0.0, 1.0),
