@@ -83,25 +83,5 @@ bool hittable_bounding_box(const Hittable *hittable, double time_start,
 
 void hittable_list_add(HittableList *list, const Hittable *hittable,
                        Arena *arena);
-bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
-                       double t_max, HitRecord *record);
-bool hittable_list_bounding_box(const HittableList *list, double time_start,
-                                double time_end, AABB *bounding_box);
-
-bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
-                HitRecord *record);
-bool sphere_bounding_box(const Sphere *sphere, double time_start,
-                         double time_end, AABB *bounding_box);
-
-Point3 moving_sphere_center(const MovingSphere *sphere, double t);
-bool moving_sphere_hit(const MovingSphere *sphere, Ray r, double t_min,
-                       double t_max, HitRecord *record);
-bool moving_sphere_bounding_box(const MovingSphere *sphere, double time_start,
-                                double time_end, AABB *bounding_box);
-
-bool bvh_node_hit(const BVHNode *node, Ray r, double t_min, double t_max,
-                  HitRecord *record);
-bool bvh_node_bounding_box(const BVHNode *node, double time_start,
-                           double time_end, AABB *bounding_box);
 
 #endif /* INCLUDED_HITTABLE_H */

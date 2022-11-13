@@ -101,6 +101,99 @@ Hittable *hittable_create_bvh_node(const Hittable **objects, size_t start,
   return result;
 }
 
+static bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
+                              double t_max, HitRecord *record) {
+  bool hit_anything = false;
+  double closest_so_far = t_max;
+
+  for (size_t i = 0; i < list->size; ++i) {
+    if (hittable_hit(list->objects[i], r, t_min, closest_so_far, record)) {
+      hit_anything = true;
+      closest_so_far = record->t;
+    }
+  }
+
+  return hit_anything;
+}
+
+static void get_sphere_uv(Point3 p, double *u, double *v) {
+  double theta = acos(-p.y);
+  double phi = atan2(-p.z, p.x) + M_PI;
+  *u = phi / (2 * M_PI);
+  *v = theta / M_PI;
+}
+
+static bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
+                       HitRecord *record) {
+  Vec3 oc = point3_sub(r.origin, sphere->center);
+  double a = vec3_length2(r.direction);
+  double half_b = vec3_dot(oc, r.direction);
+  double c = vec3_length2(oc) - sphere->radius * sphere->radius;
+  double discriminant = half_b * half_b - a * c;
+  if (discriminant < 0)
+    return false;
+
+  double square_root = sqrt(discriminant);
+  double root = (-half_b - square_root) / a;
+  if (root < t_min || t_max < root) {
+    root = (-half_b + square_root) / a;
+    if (root < t_min || t_max < root)
+      return false;
+  }
+
+  record->t = root;
+  record->p = ray_at(r, root);
+  Vec3 outward_normal =
+      vec3_div(point3_sub(record->p, sphere->center), sphere->radius);
+  hit_record_set_face_normal(record, r, outward_normal);
+  get_sphere_uv((Point3){outward_normal.x, outward_normal.y, outward_normal.z},
+                &record->u, &record->v);
+  record->material = sphere->material;
+  return true;
+}
+
+static bool moving_sphere_hit(const MovingSphere *sphere, Ray r, double t_min,
+                              double t_max, HitRecord *record) {
+  Vec3 oc = point3_sub(r.origin, moving_sphere_center(sphere, r.time));
+  double a = vec3_length2(r.direction);
+  double half_b = vec3_dot(oc, r.direction);
+  double c = vec3_length2(oc) - sphere->radius * sphere->radius;
+  double discriminant = half_b * half_b - a * c;
+  if (discriminant < 0)
+    return false;
+
+  double square_root = sqrt(discriminant);
+  double root = (-half_b - square_root) / a;
+  if (root < t_min || t_max < root) {
+    root = (-half_b + square_root) / a;
+    if (root < t_min || t_max < root)
+      return false;
+  }
+
+  record->t = root;
+  record->p = ray_at(r, root);
+  Vec3 outward_normal =
+      vec3_div(point3_sub(record->p, moving_sphere_center(sphere, r.time)),
+               sphere->radius);
+  hit_record_set_face_normal(record, r, outward_normal);
+  get_sphere_uv((Point3){outward_normal.x, outward_normal.y, outward_normal.z},
+                &record->u, &record->v);
+  record->material = sphere->material;
+  return true;
+}
+
+static bool bvh_node_hit(const BVHNode *node, Ray r, double t_min, double t_max,
+                         HitRecord *record) {
+  if (!aabb_hit(&node->box, r, t_min, t_max))
+    return false;
+
+  bool hit_left = hittable_hit(node->left, r, t_min, t_max, record);
+  bool hit_right =
+      hittable_hit(node->right, r, t_min, hit_left ? record->t : t_max, record);
+
+  return hit_left || hit_right;
+}
+
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record) {
   switch (hittable->type) {
@@ -114,6 +207,67 @@ bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
     return bvh_node_hit(&hittable->bvh_node, r, t_min, t_max, record);
   }
   return false;
+}
+
+static bool hittable_list_bounding_box(const HittableList *list,
+                                       double time_start, double time_end,
+                                       AABB *bounding_box) {
+  if (list->size == 0)
+    return false;
+
+  AABB temp_box;
+  bool first_box = true;
+
+  for (size_t i = 0; i < list->size; ++i) {
+    if (!hittable_bounding_box(list->objects[i], time_start, time_end,
+                               &temp_box))
+      return false;
+    *bounding_box =
+        first_box ? temp_box : aabb_surrounding_box(bounding_box, &temp_box);
+    first_box = false;
+  }
+
+  return true;
+}
+
+static bool sphere_bounding_box(const Sphere *sphere, double time_start,
+                                double time_end, AABB *bounding_box) {
+  (void)time_start, (void)time_end;
+  *bounding_box = (AABB){
+      .min = point3_add(sphere->center, (Vec3){-sphere->radius, -sphere->radius,
+                                               -sphere->radius}),
+      .max = point3_add(sphere->center,
+                        (Vec3){sphere->radius, sphere->radius, sphere->radius}),
+  };
+  return true;
+}
+
+static bool moving_sphere_bounding_box(const MovingSphere *sphere,
+                                       double time_start, double time_end,
+                                       AABB *bounding_box) {
+  AABB box_start = {
+      .min =
+          point3_add(moving_sphere_center(sphere, time_start),
+                     (Vec3){-sphere->radius, -sphere->radius, -sphere->radius}),
+      .max = point3_add(moving_sphere_center(sphere, time_start),
+                        (Vec3){sphere->radius, sphere->radius, sphere->radius}),
+  };
+  AABB box_end = {
+      .min =
+          point3_add(moving_sphere_center(sphere, time_end),
+                     (Vec3){-sphere->radius, -sphere->radius, -sphere->radius}),
+      .max = point3_add(moving_sphere_center(sphere, time_end),
+                        (Vec3){sphere->radius, sphere->radius, sphere->radius}),
+  };
+  *bounding_box = aabb_surrounding_box(&box_start, &box_end);
+  return true;
+}
+
+static bool bvh_node_bounding_box(const BVHNode *node, double time_start,
+                                  double time_end, AABB *bounding_box) {
+  (void)time_start, (void)time_end;
+  *bounding_box = node->box;
+  return true;
 }
 
 bool hittable_bounding_box(const Hittable *hittable, double time_start,
@@ -156,89 +310,6 @@ void hittable_list_add(HittableList *list, const Hittable *hittable,
   list->objects[list->size++] = hittable;
 }
 
-bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
-                       double t_max, HitRecord *record) {
-  bool hit_anything = false;
-  double closest_so_far = t_max;
-
-  for (size_t i = 0; i < list->size; ++i) {
-    if (hittable_hit(list->objects[i], r, t_min, closest_so_far, record)) {
-      hit_anything = true;
-      closest_so_far = record->t;
-    }
-  }
-
-  return hit_anything;
-}
-
-bool hittable_list_bounding_box(const HittableList *list, double time_start,
-                                double time_end, AABB *bounding_box) {
-  if (list->size == 0)
-    return false;
-
-  AABB temp_box;
-  bool first_box = true;
-
-  for (size_t i = 0; i < list->size; ++i) {
-    if (!hittable_bounding_box(list->objects[i], time_start, time_end,
-                               &temp_box))
-      return false;
-    *bounding_box =
-        first_box ? temp_box : aabb_surrounding_box(bounding_box, &temp_box);
-    first_box = false;
-  }
-
-  return true;
-}
-
-static void get_sphere_uv(Point3 p, double *u, double *v) {
-  double theta = acos(-p.y);
-  double phi = atan2(-p.z, p.x) + M_PI;
-  *u = phi / (2 * M_PI);
-  *v = theta / M_PI;
-}
-
-bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
-                HitRecord *record) {
-  Vec3 oc = point3_sub(r.origin, sphere->center);
-  double a = vec3_length2(r.direction);
-  double half_b = vec3_dot(oc, r.direction);
-  double c = vec3_length2(oc) - sphere->radius * sphere->radius;
-  double discriminant = half_b * half_b - a * c;
-  if (discriminant < 0)
-    return false;
-
-  double square_root = sqrt(discriminant);
-  double root = (-half_b - square_root) / a;
-  if (root < t_min || t_max < root) {
-    root = (-half_b + square_root) / a;
-    if (root < t_min || t_max < root)
-      return false;
-  }
-
-  record->t = root;
-  record->p = ray_at(r, root);
-  Vec3 outward_normal =
-      vec3_div(point3_sub(record->p, sphere->center), sphere->radius);
-  hit_record_set_face_normal(record, r, outward_normal);
-  get_sphere_uv((Point3){outward_normal.x, outward_normal.y, outward_normal.z},
-                &record->u, &record->v);
-  record->material = sphere->material;
-  return true;
-}
-
-bool sphere_bounding_box(const Sphere *sphere, double time_start,
-                         double time_end, AABB *bounding_box) {
-  (void)time_start, (void)time_end;
-  *bounding_box = (AABB){
-      .min = point3_add(sphere->center, (Vec3){-sphere->radius, -sphere->radius,
-                                               -sphere->radius}),
-      .max = point3_add(sphere->center,
-                        (Vec3){sphere->radius, sphere->radius, sphere->radius}),
-  };
-  return true;
-}
-
 Hittable *hittable_create_moving_sphere(Point3 center_start, Point3 center_end,
                                         double start, double end, double radius,
                                         const Material *material,
@@ -253,73 +324,4 @@ Hittable *hittable_create_moving_sphere(Point3 center_start, Point3 center_end,
   result->moving_sphere.radius = radius;
   result->moving_sphere.material = material;
   return result;
-}
-
-bool moving_sphere_hit(const MovingSphere *sphere, Ray r, double t_min,
-                       double t_max, HitRecord *record) {
-  Vec3 oc = point3_sub(r.origin, moving_sphere_center(sphere, r.time));
-  double a = vec3_length2(r.direction);
-  double half_b = vec3_dot(oc, r.direction);
-  double c = vec3_length2(oc) - sphere->radius * sphere->radius;
-  double discriminant = half_b * half_b - a * c;
-  if (discriminant < 0)
-    return false;
-
-  double square_root = sqrt(discriminant);
-  double root = (-half_b - square_root) / a;
-  if (root < t_min || t_max < root) {
-    root = (-half_b + square_root) / a;
-    if (root < t_min || t_max < root)
-      return false;
-  }
-
-  record->t = root;
-  record->p = ray_at(r, root);
-  Vec3 outward_normal =
-      vec3_div(point3_sub(record->p, moving_sphere_center(sphere, r.time)),
-               sphere->radius);
-  hit_record_set_face_normal(record, r, outward_normal);
-  get_sphere_uv((Point3){outward_normal.x, outward_normal.y, outward_normal.z},
-                &record->u, &record->v);
-  record->material = sphere->material;
-  return true;
-}
-
-bool moving_sphere_bounding_box(const MovingSphere *sphere, double time_start,
-                                double time_end, AABB *bounding_box) {
-  AABB box_start = {
-      .min =
-          point3_add(moving_sphere_center(sphere, time_start),
-                     (Vec3){-sphere->radius, -sphere->radius, -sphere->radius}),
-      .max = point3_add(moving_sphere_center(sphere, time_start),
-                        (Vec3){sphere->radius, sphere->radius, sphere->radius}),
-  };
-  AABB box_end = {
-      .min =
-          point3_add(moving_sphere_center(sphere, time_end),
-                     (Vec3){-sphere->radius, -sphere->radius, -sphere->radius}),
-      .max = point3_add(moving_sphere_center(sphere, time_end),
-                        (Vec3){sphere->radius, sphere->radius, sphere->radius}),
-  };
-  *bounding_box = aabb_surrounding_box(&box_start, &box_end);
-  return true;
-}
-
-bool bvh_node_hit(const BVHNode *node, Ray r, double t_min, double t_max,
-                  HitRecord *record) {
-  if (!aabb_hit(&node->box, r, t_min, t_max))
-    return false;
-
-  bool hit_left = hittable_hit(node->left, r, t_min, t_max, record);
-  bool hit_right =
-      hittable_hit(node->right, r, t_min, hit_left ? record->t : t_max, record);
-
-  return hit_left || hit_right;
-}
-
-bool bvh_node_bounding_box(const BVHNode *node, double time_start,
-                           double time_end, AABB *bounding_box) {
-  (void)time_start, (void)time_end;
-  *bounding_box = node->box;
-  return true;
 }
