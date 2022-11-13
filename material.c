@@ -1,6 +1,7 @@
 #include "material.h"
 #include "arena.h"
 #include "hittable.h"
+#include "texture.h"
 #include "utils.h"
 #include "vec3.h"
 
@@ -81,8 +82,25 @@ bool material_scatter(const Material *material, Ray r,
   case MATERIAL_DIELECTRIC:
     return dielectric_scatter(&material->dielectric, r, record, attenuation,
                               scattered);
+  case MATERIAL_DIFFUSE_LIGHT:
+    return false;
   }
   return false;
+}
+
+static Color diffuse_light_emitted(const DiffuseLight *diffuse_light, double u,
+                                   double v, Point3 p) {
+  return texture_value(diffuse_light->emit, u, v, p);
+}
+
+Color material_emitted(const Material *material, double u, double v, Point3 p) {
+  switch (material->type) {
+  case MATERIAL_DIFFUSE_LIGHT:
+    return diffuse_light_emitted(&material->diffuse_light, u, v, p);
+  default:
+    break;
+  }
+  return (Color){0.0, 0.0, 0.0};
 }
 
 Material *material_create_lambertian(const Texture *albedo, Arena *arena) {
@@ -116,5 +134,19 @@ Material *material_create_dielectric(double eta, Arena *arena) {
   Material *result = arena_alloc(arena, sizeof(Material));
   result->type = MATERIAL_DIELECTRIC;
   result->dielectric.eta = eta;
+  return result;
+}
+
+Material *material_create_diffuse_light(const Texture *emit, Arena *arena) {
+  Material *result = arena_alloc(arena, sizeof(Material));
+  result->type = MATERIAL_DIFFUSE_LIGHT;
+  result->diffuse_light.emit = emit;
+  return result;
+}
+
+Material *material_create_diffuse_light_color(Color color, Arena *arena) {
+  Material *result = arena_alloc(arena, sizeof(Material));
+  result->type = MATERIAL_DIFFUSE_LIGHT;
+  result->diffuse_light.emit = texture_create_solid_color(color, arena);
   return result;
 }

@@ -27,6 +27,7 @@ typedef enum HittableType {
   HITTABLE_SPHERE,
   HITTABLE_MOVING_SPHERE,
   HITTABLE_BVH_NODE,
+  HITTABLE_XY_RECTANGLE,
 } HittableType;
 
 typedef struct Hittable Hittable;
@@ -56,6 +57,11 @@ typedef struct BVHNode {
   AABB box;
 } BVHNode;
 
+typedef struct XYRectangle {
+  const Material *material;
+  double x0, x1, y0, y1, k;
+} XYRectangle;
+
 struct Hittable {
   HittableType type;
   union {
@@ -63,6 +69,7 @@ struct Hittable {
     Sphere sphere;
     MovingSphere moving_sphere;
     BVHNode bvh_node;
+    XYRectangle xy_rectangle;
   };
 };
 
@@ -75,6 +82,9 @@ Hittable *hittable_create_moving_sphere(Point3 center_start, Point3 center_end,
 Hittable *hittable_create_bvh_node(const Hittable **objects, size_t start,
                                    size_t end, double time_start,
                                    double time_end, Arena *arena);
+Hittable *hittable_create_xy_rectangle(double x0, double x1, double y0,
+                                       double y1, double k,
+                                       const Material *material, Arena *arena);
 
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record);

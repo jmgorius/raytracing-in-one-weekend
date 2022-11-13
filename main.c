@@ -20,27 +20,32 @@
 #define SCENE_TWO_SPHERES 1
 #define SCENE_TWO_PERLIN_SPHERES 2
 #define SCENE_EARTH 3
+#define SCENE_SIMPLE_LIGHT 4
 
-#define SCENE_SELECT SCENE_EARTH
+#ifndef SCENE_SELECT
+#define SCENE_SELECT SCENE_SIMPLE_LIGHT
+#endif
 
-static Color ray_color(Ray r, const Hittable *world, int depth) {
+static Color ray_color(Ray r, Color background_color, const Hittable *world,
+                       int depth) {
   if (depth <= 0)
     return (Color){0, 0, 0};
 
   HitRecord record;
-  if (hittable_hit(world, r, 0.001, DBL_MAX, &record)) {
-    Ray scattered;
-    Color attenuation;
-    if (material_scatter(record.material, r, &record, &attenuation, &scattered))
-      return color_mul(attenuation, ray_color(scattered, world, depth - 1));
-    return (Color){0, 0, 0};
-  }
+  if (!hittable_hit(world, r, 0.001, DBL_MAX, &record))
+    return background_color;
 
-  Vec3 unit_direction = vec3_normalize(r.direction);
-  double t = 0.5 * (unit_direction.y + 1.0);
-  Color gradient1 = {1.0, 1.0, 1.0};
-  Color gradient2 = {0.5, 0.7, 1.0};
-  return color_lerp(gradient1, gradient2, t);
+  Ray scattered;
+  Color attenuation;
+  Color emitted =
+      material_emitted(record.material, record.u, record.v, record.p);
+
+  if (!material_scatter(record.material, r, &record, &attenuation, &scattered))
+    return emitted;
+
+  return color_add(emitted,
+                   color_mul(attenuation, ray_color(scattered, background_color,
+                                                    world, depth - 1)));
 }
 
 static const Hittable *generate_random_scene(Arena *arena) {
@@ -152,6 +157,34 @@ static Hittable *earth(Arena *arena) {
   return globe;
 }
 
+static Hittable *simple_light(Arena *arena) {
+  Hittable *world = hittable_create_hittable_list(arena);
+
+  Texture *perlin_texture =
+      texture_create_perlin_noise(4.0, PERLIN_DEFAULT_POINT_COUNT, arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_sphere((Point3){0.0, -1000.0, 0.0}, 1000.0,
+                             material_create_lambertian(perlin_texture, arena),
+                             arena),
+      arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_sphere((Point3){0.0, 2.0, 0.0}, 2.0,
+                             material_create_lambertian(perlin_texture, arena),
+                             arena),
+      arena);
+
+  Material *diffuse_light =
+      material_create_diffuse_light_color((Color){4.0, 4.0, 4.0}, arena);
+  hittable_list_add(&world->list,
+                    hittable_create_xy_rectangle(3.0, 5.0, 1.0, 3.0, -2.0,
+                                                 diffuse_light, arena),
+                    arena);
+
+  return world;
+}
+
 int main(void) {
   srand(42);
 
@@ -169,39 +202,50 @@ int main(void) {
   const double aspect_ratio = 16.0 / 9.0;
   const int image_width = 400;
   const int image_height = (int)(image_width / aspect_ratio);
-  const int samples_per_pixel = 100;
+  const int samples_per_pixel = 400;
   const int max_depth = 50;
-
-  /* World */
 
   Point3 look_from = {0.0, 0.0, 1.0};
   Point3 look_at = {0.0, 0.0, 0.0};
   double vfov = 40.0;
   double aperture = 0.0;
   double dist_to_focus = 10.0;
+  Color background_color = {0.0, 0.0, 0.0};
+
+  /* World */
 
   const Hittable *world = 0;
 
 #if SCENE_SELECT == SCENE_RANDOM
   world = generate_random_scene(&arena);
+  background_color = (Color){0.7, 0.8, 1.0};
   look_from = (Point3){13.0, 2.0, 3.0};
   look_at = (Point3){0.0, 0.0, 0.0};
   vfov = 20.0;
   aperture = 0.1;
 #elif SCENE_SELECT == SCENE_TWO_SPHERES
   world = two_spheres(&arena);
+  background_color = (Color){0.7, 0.8, 1.0};
   look_from = (Point3){13.0, 2.0, 3.0};
   look_at = (Point3){0.0, 0.0, 0.0};
   vfov = 20.0;
 #elif SCENE_SELECT == SCENE_TWO_PERLIN_SPHERES
   world = two_perlin_spheres(&arena);
+  background_color = (Color){0.7, 0.8, 1.0};
   look_from = (Point3){13.0, 2.0, 3.0};
   look_at = (Point3){0.0, 0.0, 0.0};
   vfov = 20.0;
 #elif SCENE_SELECT == SCENE_EARTH
   world = earth(&arena);
+  background_color = (Color){0.7, 0.8, 1.0};
   look_from = (Point3){13.0, 2.0, 3.0};
   look_at = (Point3){0.0, 0.0, 0.0};
+  vfov = 20.0;
+#elif SCENE_SELECT == SCENE_SIMPLE_LIGHT
+  world = simple_light(&arena);
+  background_color = (Color){0.0, 0.0, 0.0};
+  look_from = (Point3){26.0, 3.0, 6.0};
+  look_at = (Point3){0.0, 2.0, 0.0};
   vfov = 20.0;
 #endif
 
@@ -221,7 +265,8 @@ int main(void) {
         double u = (i + random_double()) / (image_width - 1);
         double v = (j + random_double()) / (image_height - 1);
         Ray r = camera_get_ray(&camera, u, v);
-        pixel_color = color_add(pixel_color, ray_color(r, world, max_depth));
+        pixel_color = color_add(
+            pixel_color, ray_color(r, background_color, world, max_depth));
       }
       color_write(stdout, pixel_color, samples_per_pixel);
     }

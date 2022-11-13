@@ -1,7 +1,9 @@
 #include "hittable.h"
 #include "aabb.h"
 #include "arena.h"
+#include "material.h"
 #include "point3.h"
+#include "ray.h"
 #include "utils.h"
 #include "vec3.h"
 
@@ -32,10 +34,26 @@ Hittable *hittable_create_sphere(Point3 center, double radius,
   return result;
 }
 
-Point3 moving_sphere_center(const MovingSphere *sphere, double t) {
+static Point3 moving_sphere_center(const MovingSphere *sphere, double t) {
   Vec3 dir = point3_sub(sphere->center_end, sphere->center_start);
   double c = (t - sphere->start) / (sphere->end - sphere->start);
   return point3_add(sphere->center_start, vec3_mul(c, dir));
+}
+
+Hittable *hittable_create_moving_sphere(Point3 center_start, Point3 center_end,
+                                        double start, double end, double radius,
+                                        const Material *material,
+                                        Arena *arena) {
+  assert(start <= end);
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_MOVING_SPHERE;
+  result->moving_sphere.center_start = center_start;
+  result->moving_sphere.center_end = center_end;
+  result->moving_sphere.start = start;
+  result->moving_sphere.end = end;
+  result->moving_sphere.radius = radius;
+  result->moving_sphere.material = material;
+  return result;
 }
 
 typedef int BoxCompareFunc(const void *lhs, const void *rhs);
@@ -98,6 +116,20 @@ Hittable *hittable_create_bvh_node(const Hittable **objects, size_t start,
   }
 
   result->bvh_node.box = aabb_surrounding_box(&left_box, &right_box);
+  return result;
+}
+
+Hittable *hittable_create_xy_rectangle(double x0, double x1, double y0,
+                                       double y1, double k,
+                                       const Material *material, Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_XY_RECTANGLE;
+  result->xy_rectangle.x0 = x0;
+  result->xy_rectangle.x1 = x1;
+  result->xy_rectangle.y0 = y0;
+  result->xy_rectangle.y1 = y1;
+  result->xy_rectangle.k = k;
+  result->xy_rectangle.material = material;
   return result;
 }
 
@@ -194,6 +226,31 @@ static bool bvh_node_hit(const BVHNode *node, Ray r, double t_min, double t_max,
   return hit_left || hit_right;
 }
 
+static bool xy_rectangle_hit(const XYRectangle *rectangle, Ray r, double t_min,
+                             double t_max, HitRecord *record) {
+  double t = (rectangle->k - r.origin.z) / r.direction.z;
+  if (t < t_min || t > t_max)
+    return false;
+
+  double x = r.origin.x + t * r.direction.x;
+  double y = r.origin.y + t * r.direction.y;
+
+  if (x < rectangle->x0 || x > rectangle->x1 || y < rectangle->y0 ||
+      y > rectangle->y1)
+    return false;
+
+  record->u = (x - rectangle->x0) / (rectangle->x1 - rectangle->x0);
+  record->v = (y - rectangle->y0) / (rectangle->y1 - rectangle->y0);
+  record->t = t;
+
+  Vec3 outward_normal = {0.0, 0.0, 1.0};
+  hit_record_set_face_normal(record, r, outward_normal);
+  record->material = rectangle->material;
+  record->p = ray_at(r, t);
+
+  return true;
+}
+
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record) {
   switch (hittable->type) {
@@ -205,6 +262,8 @@ bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
     return moving_sphere_hit(&hittable->moving_sphere, r, t_min, t_max, record);
   case HITTABLE_BVH_NODE:
     return bvh_node_hit(&hittable->bvh_node, r, t_min, t_max, record);
+  case HITTABLE_XY_RECTANGLE:
+    return xy_rectangle_hit(&hittable->xy_rectangle, r, t_min, t_max, record);
   }
   return false;
 }
@@ -230,9 +289,7 @@ static bool hittable_list_bounding_box(const HittableList *list,
   return true;
 }
 
-static bool sphere_bounding_box(const Sphere *sphere, double time_start,
-                                double time_end, AABB *bounding_box) {
-  (void)time_start, (void)time_end;
+static bool sphere_bounding_box(const Sphere *sphere, AABB *bounding_box) {
   *bounding_box = (AABB){
       .min = point3_add(sphere->center, (Vec3){-sphere->radius, -sphere->radius,
                                                -sphere->radius}),
@@ -263,10 +320,18 @@ static bool moving_sphere_bounding_box(const MovingSphere *sphere,
   return true;
 }
 
-static bool bvh_node_bounding_box(const BVHNode *node, double time_start,
-                                  double time_end, AABB *bounding_box) {
-  (void)time_start, (void)time_end;
+static bool bvh_node_bounding_box(const BVHNode *node, AABB *bounding_box) {
   *bounding_box = node->box;
+  return true;
+}
+
+static bool xy_rectangle_bouding_box(const XYRectangle *rectangle,
+                                     AABB *bounding_box) {
+  /* Pad the bounding box to make sure it is not zero-width */
+  *bounding_box = (AABB){
+      .min = {rectangle->x0, rectangle->y0, rectangle->k - 0.0001},
+      .max = {rectangle->x1, rectangle->y1, rectangle->k + 0.0001},
+  };
   return true;
 }
 
@@ -277,14 +342,14 @@ bool hittable_bounding_box(const Hittable *hittable, double time_start,
     return hittable_list_bounding_box(&hittable->list, time_start, time_end,
                                       bounding_box);
   case HITTABLE_SPHERE:
-    return sphere_bounding_box(&hittable->sphere, time_start, time_end,
-                               bounding_box);
+    return sphere_bounding_box(&hittable->sphere, bounding_box);
   case HITTABLE_MOVING_SPHERE:
     return moving_sphere_bounding_box(&hittable->moving_sphere, time_start,
                                       time_end, bounding_box);
   case HITTABLE_BVH_NODE:
-    return bvh_node_bounding_box(&hittable->bvh_node, time_start, time_end,
-                                 bounding_box);
+    return bvh_node_bounding_box(&hittable->bvh_node, bounding_box);
+  case HITTABLE_XY_RECTANGLE:
+    return xy_rectangle_bouding_box(&hittable->xy_rectangle, bounding_box);
   }
   return false;
 }
@@ -308,20 +373,4 @@ void hittable_list_add(HittableList *list, const Hittable *hittable,
   if (list->capacity == list->size)
     hittable_list_grow(list, list->capacity == 0 ? 16 : list->capacity, arena);
   list->objects[list->size++] = hittable;
-}
-
-Hittable *hittable_create_moving_sphere(Point3 center_start, Point3 center_end,
-                                        double start, double end, double radius,
-                                        const Material *material,
-                                        Arena *arena) {
-  assert(start <= end);
-  Hittable *result = arena_alloc(arena, sizeof(Hittable));
-  result->type = HITTABLE_MOVING_SPHERE;
-  result->moving_sphere.center_start = center_start;
-  result->moving_sphere.center_end = center_end;
-  result->moving_sphere.start = start;
-  result->moving_sphere.end = end;
-  result->moving_sphere.radius = radius;
-  result->moving_sphere.material = material;
-  return result;
 }
