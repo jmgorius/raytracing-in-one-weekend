@@ -16,19 +16,102 @@ void hit_record_set_face_normal(HitRecord *record, Ray r, Vec3 outward_normal) {
       record->front_face ? outward_normal : vec3_neg(outward_normal);
 }
 
+Hittable *hittable_create_hittable_list(Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_LIST;
+  return result;
+}
+
+Hittable *hittable_create_sphere(Point3 center, double radius,
+                                 const Material *material, Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_SPHERE;
+  result->sphere.center = center;
+  result->sphere.radius = radius;
+  result->sphere.material = material;
+  return result;
+}
+
+Point3 moving_sphere_center(const MovingSphere *sphere, double t) {
+  Vec3 dir = point3_sub(sphere->center_end, sphere->center_start);
+  double c = (t - sphere->start) / (sphere->end - sphere->start);
+  return point3_add(sphere->center_start, vec3_mul(c, dir));
+}
+
+typedef int BoxCompareFunc(const void *lhs, const void *rhs);
+
+#define BOX_COMPARATOR(axis)                                                   \
+  static int box_##axis##_compare(const void *lhs, const void *rhs) {          \
+    AABB lhs_box, rhs_box;                                                     \
+    if (!hittable_bounding_box(*(const Hittable **)lhs, 0, 0, &lhs_box) ||     \
+        !hittable_bounding_box(*(const Hittable **)rhs, 0, 0, &rhs_box)) {     \
+      fprintf(stderr, "No bounding-box in BVH node");                          \
+      exit(1);                                                                 \
+    }                                                                          \
+                                                                               \
+    return lhs_box.min.axis < rhs_box.min.axis;                                \
+  }
+BOX_COMPARATOR(x)
+BOX_COMPARATOR(y)
+BOX_COMPARATOR(z)
+#undef BOX_COMPARATOR
+
+Hittable *hittable_create_bvh_node(const Hittable **objects, size_t start,
+                                   size_t end, double time_start,
+                                   double time_end, Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_BVH_NODE;
+
+  int axis = random_int_in_range(0, 2);
+  BoxCompareFunc *comparator = (axis == 0)   ? box_x_compare
+                               : (axis == 1) ? box_y_compare
+                                             : box_z_compare;
+
+  size_t object_span = end - start;
+  if (object_span == 1) {
+    result->bvh_node.left = result->bvh_node.right = objects[start];
+  } else if (object_span == 2) {
+    if (comparator(&objects[start], &objects[start + 1])) {
+      result->bvh_node.left = objects[start];
+      result->bvh_node.right = objects[start + 1];
+    } else {
+      result->bvh_node.left = objects[start + 1];
+      result->bvh_node.right = objects[start];
+    }
+  } else {
+    qsort(objects + start, object_span, sizeof(const Hittable *), comparator);
+    size_t mid = start + object_span / 2;
+    result->bvh_node.left = hittable_create_bvh_node(
+        objects, start, mid, time_start, time_end, arena);
+    result->bvh_node.right = hittable_create_bvh_node(
+        objects, mid, end, time_start, time_end, arena);
+  }
+
+  AABB left_box, right_box;
+
+  if (!hittable_bounding_box(result->bvh_node.left, time_start, time_end,
+                             &left_box) ||
+      !hittable_bounding_box(result->bvh_node.right, time_start, time_end,
+                             &right_box)) {
+    fprintf(stderr, "No bounding-box in BVH node");
+    exit(1);
+  }
+
+  result->bvh_node.box = aabb_surrounding_box(&left_box, &right_box);
+  return result;
+}
+
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record) {
   switch (hittable->type) {
   case HITTABLE_LIST:
-    return hittable_list_hit((const HittableList *)hittable, r, t_min, t_max,
-                             record);
+    return hittable_list_hit(&hittable->list, r, t_min, t_max, record);
   case HITTABLE_SPHERE:
-    return sphere_hit((const Sphere *)hittable, r, t_min, t_max, record);
+    return sphere_hit(&hittable->sphere, r, t_min, t_max, record);
   case HITTABLE_MOVING_SPHERE:
-    return moving_sphere_hit((const MovingSphere *)hittable, r, t_min, t_max,
-                             record);
+    return moving_sphere_hit(&hittable->moving_sphere, r, t_min, t_max, record);
   case HITTABLE_BVH_NODE:
-    return bvh_node_hit((const BVHNode *)hittable, r, t_min, t_max, record);
+    return bvh_node_hit(&hittable->bvh_node, r, t_min, t_max, record);
   }
   return false;
 }
@@ -37,25 +120,19 @@ bool hittable_bounding_box(const Hittable *hittable, double time_start,
                            double time_end, AABB *bounding_box) {
   switch (hittable->type) {
   case HITTABLE_LIST:
-    return hittable_list_bounding_box((const HittableList *)hittable,
-                                      time_start, time_end, bounding_box);
+    return hittable_list_bounding_box(&hittable->list, time_start, time_end,
+                                      bounding_box);
   case HITTABLE_SPHERE:
-    return sphere_bounding_box((const Sphere *)hittable, time_start, time_end,
+    return sphere_bounding_box(&hittable->sphere, time_start, time_end,
                                bounding_box);
   case HITTABLE_MOVING_SPHERE:
-    return moving_sphere_bounding_box((const MovingSphere *)hittable,
-                                      time_start, time_end, bounding_box);
+    return moving_sphere_bounding_box(&hittable->moving_sphere, time_start,
+                                      time_end, bounding_box);
   case HITTABLE_BVH_NODE:
-    return bvh_node_bounding_box((const BVHNode *)hittable, time_start,
-                                 time_end, bounding_box);
+    return bvh_node_bounding_box(&hittable->bvh_node, time_start, time_end,
+                                 bounding_box);
   }
   return false;
-}
-
-HittableList *hittable_list_create(Arena *arena) {
-  HittableList *list = arena_alloc(arena, sizeof(HittableList));
-  list->type = HITTABLE_LIST;
-  return list;
 }
 
 static void hittable_list_grow(HittableList *list, size_t n, Arena *arena) {
@@ -114,16 +191,6 @@ bool hittable_list_bounding_box(const HittableList *list, double time_start,
   return true;
 }
 
-Sphere *sphere_create(Point3 center, double radius, const Material *material,
-                      Arena *arena) {
-  Sphere *sphere = arena_alloc(arena, sizeof(Sphere));
-  sphere->type = HITTABLE_SPHERE;
-  sphere->center = center;
-  sphere->radius = radius;
-  sphere->material = material;
-  return sphere;
-}
-
 bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
                 HitRecord *record) {
   Vec3 oc = point3_sub(r.origin, sphere->center);
@@ -163,25 +230,20 @@ bool sphere_bounding_box(const Sphere *sphere, double time_start,
   return true;
 }
 
-MovingSphere *moving_sphere_create(Point3 center_start, Point3 center_end,
-                                   double start, double end, double radius,
-                                   const Material *material, Arena *arena) {
+Hittable *hittable_create_moving_sphere(Point3 center_start, Point3 center_end,
+                                        double start, double end, double radius,
+                                        const Material *material,
+                                        Arena *arena) {
   assert(start <= end);
-  MovingSphere *sphere = arena_alloc(arena, sizeof(MovingSphere));
-  sphere->type = HITTABLE_MOVING_SPHERE;
-  sphere->center_start = center_start;
-  sphere->center_end = center_end;
-  sphere->start = start;
-  sphere->end = end;
-  sphere->radius = radius;
-  sphere->material = material;
-  return sphere;
-}
-
-Point3 moving_sphere_center(const MovingSphere *sphere, double t) {
-  Vec3 dir = point3_sub(sphere->center_end, sphere->center_start);
-  double c = (t - sphere->start) / (sphere->end - sphere->start);
-  return point3_add(sphere->center_start, vec3_mul(c, dir));
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_MOVING_SPHERE;
+  result->moving_sphere.center_start = center_start;
+  result->moving_sphere.center_end = center_end;
+  result->moving_sphere.start = start;
+  result->moving_sphere.end = end;
+  result->moving_sphere.radius = radius;
+  result->moving_sphere.material = material;
+  return result;
 }
 
 bool moving_sphere_hit(const MovingSphere *sphere, Ray r, double t_min,
@@ -230,66 +292,6 @@ bool moving_sphere_bounding_box(const MovingSphere *sphere, double time_start,
   };
   *bounding_box = aabb_surrounding_box(&box_start, &box_end);
   return true;
-}
-
-typedef int BoxCompareFunc(const void *lhs, const void *rhs);
-
-#define BOX_COMPARATOR(axis)                                                   \
-  static int box_##axis##_compare(const void *lhs, const void *rhs) {          \
-    AABB lhs_box, rhs_box;                                                     \
-    if (!hittable_bounding_box(*(const Hittable **)lhs, 0, 0, &lhs_box) ||     \
-        !hittable_bounding_box(*(const Hittable **)rhs, 0, 0, &rhs_box)) {     \
-      fprintf(stderr, "No bounding-box in BVH node");                          \
-      exit(1);                                                                 \
-    }                                                                          \
-                                                                               \
-    return lhs_box.min.axis < rhs_box.min.axis;                                \
-  }
-BOX_COMPARATOR(x)
-BOX_COMPARATOR(y)
-BOX_COMPARATOR(z)
-#undef BOX_COMPARATOR
-
-BVHNode *bvh_node_create(const Hittable **objects, size_t start, size_t end,
-                         double time_start, double time_end, Arena *arena) {
-  BVHNode *node = arena_alloc(arena, sizeof(BVHNode));
-  node->type = HITTABLE_BVH_NODE;
-
-  int axis = random_int_in_range(0, 2);
-  BoxCompareFunc *comparator = (axis == 0)   ? box_x_compare
-                               : (axis == 1) ? box_y_compare
-                                             : box_z_compare;
-
-  size_t object_span = end - start;
-  if (object_span == 1) {
-    node->left = node->right = objects[start];
-  } else if (object_span == 2) {
-    if (comparator(&objects[start], &objects[start + 1])) {
-      node->left = objects[start];
-      node->right = objects[start + 1];
-    } else {
-      node->left = objects[start + 1];
-      node->right = objects[start];
-    }
-  } else {
-    qsort(objects + start, object_span, sizeof(const Hittable *), comparator);
-    size_t mid = start + object_span / 2;
-    node->left = (const Hittable *)bvh_node_create(objects, start, mid,
-                                                   time_start, time_end, arena);
-    node->right = (const Hittable *)bvh_node_create(
-        objects, mid, end, time_start, time_end, arena);
-  }
-
-  AABB left_box, right_box;
-
-  if (!hittable_bounding_box(node->left, time_start, time_end, &left_box) ||
-      !hittable_bounding_box(node->right, time_start, time_end, &right_box)) {
-    fprintf(stderr, "No bounding-box in BVH node");
-    exit(1);
-  }
-
-  node->box = aabb_surrounding_box(&left_box, &right_box);
-  return node;
 }
 
 bool bvh_node_hit(const BVHNode *node, Ray r, double t_min, double t_max,

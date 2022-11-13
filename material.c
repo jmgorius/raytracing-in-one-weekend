@@ -12,23 +12,22 @@ bool material_scatter(const Material *material, Ray r,
                       Ray *scattered) {
   switch (material->type) {
   case MATERIAL_LAMBERTIAN:
-    return lambertian_scatter((const Lambertian *)material, r, record,
-                              attenuation, scattered);
+    return lambertian_scatter(&material->lambertian, r, record, attenuation,
+                              scattered);
   case MATERIAL_METAL:
-    return metal_scatter((const Metal *)material, r, record, attenuation,
-                         scattered);
+    return metal_scatter(&material->metal, r, record, attenuation, scattered);
   case MATERIAL_DIELECTRIC:
-    return dielectric_scatter((const Dielectric *)material, r, record,
-                              attenuation, scattered);
+    return dielectric_scatter(&material->dielectric, r, record, attenuation,
+                              scattered);
   }
   return false;
 }
 
-Lambertian *lambertian_create(Color albedo, Arena *arena) {
-  Lambertian *lambertian = arena_alloc(arena, sizeof(Lambertian));
-  lambertian->type = MATERIAL_LAMBERTIAN;
-  lambertian->albedo = albedo;
-  return lambertian;
+Material *material_create_lambertian(Color albedo, Arena *arena) {
+  Material *result = arena_alloc(arena, sizeof(Material));
+  result->type = MATERIAL_LAMBERTIAN;
+  result->lambertian.albedo = albedo;
+  return result;
 }
 
 bool lambertian_scatter(const Lambertian *lambertian, Ray r,
@@ -46,12 +45,12 @@ bool lambertian_scatter(const Lambertian *lambertian, Ray r,
   return true;
 }
 
-Metal *metal_create(Color albedo, double fuzziness, Arena *arena) {
-  Metal *metal = arena_alloc(arena, sizeof(Metal));
-  metal->type = MATERIAL_METAL;
-  metal->albedo = albedo;
-  metal->fuzziness = fuzziness;
-  return metal;
+Material *material_create_metal(Color albedo, double fuzziness, Arena *arena) {
+  Material *result = arena_alloc(arena, sizeof(Material));
+  result->type = MATERIAL_METAL;
+  result->metal.albedo = albedo;
+  result->metal.fuzziness = fuzziness;
+  return result;
 }
 
 bool metal_scatter(const Metal *metal, Ray r, const struct HitRecord *record,
@@ -68,11 +67,11 @@ bool metal_scatter(const Metal *metal, Ray r, const struct HitRecord *record,
   return vec3_dot(scattered->direction, record->normal) > 0;
 }
 
-Dielectric *dielectric_create(double eta, Arena *arena) {
-  Dielectric *dielectric = arena_alloc(arena, sizeof(Dielectric));
-  dielectric->type = MATERIAL_DIELECTRIC;
-  dielectric->eta = eta;
-  return dielectric;
+Material *material_create_dielectric(double eta, Arena *arena) {
+  Material *result = arena_alloc(arena, sizeof(Material));
+  result->type = MATERIAL_DIELECTRIC;
+  result->dielectric.eta = eta;
+  return result;
 }
 
 static double schlick_reflectance(double cosine, double eta) {
