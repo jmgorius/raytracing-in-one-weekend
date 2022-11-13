@@ -12,9 +12,11 @@ add_executable(raytracer main.c
                perlin.c
                point3.c
                ray.c
+               scenes.c
                texture.c
                utils.c
                vec3.c
 
                external/stb_image.c)
-target_link_libraries(raytracer m)
+target_link_libraries(raytracer PRIVATE m)
+target_compile_options(raytracer PRIVATE -march=native)
