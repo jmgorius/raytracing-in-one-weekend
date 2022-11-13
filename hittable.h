@@ -28,6 +28,8 @@ typedef enum HittableType {
   HITTABLE_MOVING_SPHERE,
   HITTABLE_BVH_NODE,
   HITTABLE_XY_RECTANGLE,
+  HITTABLE_XZ_RECTANGLE,
+  HITTABLE_YZ_RECTANGLE,
 } HittableType;
 
 typedef struct Hittable Hittable;
@@ -62,6 +64,16 @@ typedef struct XYRectangle {
   double x0, x1, y0, y1, k;
 } XYRectangle;
 
+typedef struct XZRectangle {
+  const Material *material;
+  double x0, x1, z0, z1, k;
+} XZRectangle;
+
+typedef struct YZRectangle {
+  const Material *material;
+  double y0, y1, z0, z1, k;
+} YZRectangle;
+
 struct Hittable {
   HittableType type;
   union {
@@ -70,6 +82,8 @@ struct Hittable {
     MovingSphere moving_sphere;
     BVHNode bvh_node;
     XYRectangle xy_rectangle;
+    XZRectangle xz_rectangle;
+    YZRectangle yz_rectangle;
   };
 };
 
@@ -84,6 +98,12 @@ Hittable *hittable_create_bvh_node(const Hittable **objects, size_t start,
                                    double time_end, Arena *arena);
 Hittable *hittable_create_xy_rectangle(double x0, double x1, double y0,
                                        double y1, double k,
+                                       const Material *material, Arena *arena);
+Hittable *hittable_create_xz_rectangle(double x0, double x1, double z0,
+                                       double z1, double k,
+                                       const Material *material, Arena *arena);
+Hittable *hittable_create_yz_rectangle(double y0, double y1, double z0,
+                                       double z1, double k,
                                        const Material *material, Arena *arena);
 
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,

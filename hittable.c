@@ -133,6 +133,34 @@ Hittable *hittable_create_xy_rectangle(double x0, double x1, double y0,
   return result;
 }
 
+Hittable *hittable_create_xz_rectangle(double x0, double x1, double z0,
+                                       double z1, double k,
+                                       const Material *material, Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_XZ_RECTANGLE;
+  result->xz_rectangle.x0 = x0;
+  result->xz_rectangle.x1 = x1;
+  result->xz_rectangle.z0 = z0;
+  result->xz_rectangle.z1 = z1;
+  result->xz_rectangle.k = k;
+  result->xz_rectangle.material = material;
+  return result;
+}
+
+Hittable *hittable_create_yz_rectangle(double y0, double y1, double z0,
+                                       double z1, double k,
+                                       const Material *material, Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_YZ_RECTANGLE;
+  result->yz_rectangle.y0 = y0;
+  result->yz_rectangle.y1 = y1;
+  result->yz_rectangle.z0 = z0;
+  result->yz_rectangle.z1 = z1;
+  result->yz_rectangle.k = k;
+  result->yz_rectangle.material = material;
+  return result;
+}
+
 static bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
                               double t_max, HitRecord *record) {
   bool hit_anything = false;
@@ -251,6 +279,56 @@ static bool xy_rectangle_hit(const XYRectangle *rectangle, Ray r, double t_min,
   return true;
 }
 
+static bool xz_rectangle_hit(const XZRectangle *rectangle, Ray r, double t_min,
+                             double t_max, HitRecord *record) {
+  double t = (rectangle->k - r.origin.y) / r.direction.y;
+  if (t < t_min || t > t_max)
+    return false;
+
+  double x = r.origin.x + t * r.direction.x;
+  double z = r.origin.z + t * r.direction.z;
+
+  if (x < rectangle->x0 || x > rectangle->x1 || z < rectangle->z0 ||
+      z > rectangle->z1)
+    return false;
+
+  record->u = (x - rectangle->x0) / (rectangle->x1 - rectangle->x0);
+  record->v = (z - rectangle->z0) / (rectangle->z1 - rectangle->z0);
+  record->t = t;
+
+  Vec3 outward_normal = {0.0, 1.0, 0.0};
+  hit_record_set_face_normal(record, r, outward_normal);
+  record->material = rectangle->material;
+  record->p = ray_at(r, t);
+
+  return true;
+}
+
+static bool yz_rectangle_hit(const YZRectangle *rectangle, Ray r, double t_min,
+                             double t_max, HitRecord *record) {
+  double t = (rectangle->k - r.origin.x) / r.direction.x;
+  if (t < t_min || t > t_max)
+    return false;
+
+  double y = r.origin.y + t * r.direction.y;
+  double z = r.origin.z + t * r.direction.z;
+
+  if (y < rectangle->y0 || y > rectangle->y1 || z < rectangle->z0 ||
+      z > rectangle->z1)
+    return false;
+
+  record->u = (y - rectangle->y0) / (rectangle->y1 - rectangle->y0);
+  record->v = (z - rectangle->z0) / (rectangle->z1 - rectangle->z0);
+  record->t = t;
+
+  Vec3 outward_normal = {1.0, 0.0, 0.0};
+  hit_record_set_face_normal(record, r, outward_normal);
+  record->material = rectangle->material;
+  record->p = ray_at(r, t);
+
+  return true;
+}
+
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record) {
   switch (hittable->type) {
@@ -264,6 +342,10 @@ bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
     return bvh_node_hit(&hittable->bvh_node, r, t_min, t_max, record);
   case HITTABLE_XY_RECTANGLE:
     return xy_rectangle_hit(&hittable->xy_rectangle, r, t_min, t_max, record);
+  case HITTABLE_XZ_RECTANGLE:
+    return xz_rectangle_hit(&hittable->xz_rectangle, r, t_min, t_max, record);
+  case HITTABLE_YZ_RECTANGLE:
+    return yz_rectangle_hit(&hittable->yz_rectangle, r, t_min, t_max, record);
   }
   return false;
 }
@@ -325,12 +407,32 @@ static bool bvh_node_bounding_box(const BVHNode *node, AABB *bounding_box) {
   return true;
 }
 
-static bool xy_rectangle_bouding_box(const XYRectangle *rectangle,
-                                     AABB *bounding_box) {
+static bool xy_rectangle_bounding_box(const XYRectangle *rectangle,
+                                      AABB *bounding_box) {
   /* Pad the bounding box to make sure it is not zero-width */
   *bounding_box = (AABB){
       .min = {rectangle->x0, rectangle->y0, rectangle->k - 0.0001},
       .max = {rectangle->x1, rectangle->y1, rectangle->k + 0.0001},
+  };
+  return true;
+}
+
+static bool xz_rectangle_bounding_box(const XZRectangle *rectangle,
+                                      AABB *bounding_box) {
+  /* Pad the bounding box to make sure it is not zero-width */
+  *bounding_box = (AABB){
+      .min = {rectangle->x0, rectangle->k - 0.0001, rectangle->z0},
+      .max = {rectangle->x1, rectangle->k + 0.0001, rectangle->z1},
+  };
+  return true;
+}
+
+static bool yz_rectangle_bounding_box(const YZRectangle *rectangle,
+                                      AABB *bounding_box) {
+  /* Pad the bounding box to make sure it is not zero-width */
+  *bounding_box = (AABB){
+      .min = {rectangle->k - 0.0001, rectangle->y0, rectangle->z0},
+      .max = {rectangle->k + 0.0001, rectangle->y1, rectangle->z1},
   };
   return true;
 }
@@ -349,7 +451,11 @@ bool hittable_bounding_box(const Hittable *hittable, double time_start,
   case HITTABLE_BVH_NODE:
     return bvh_node_bounding_box(&hittable->bvh_node, bounding_box);
   case HITTABLE_XY_RECTANGLE:
-    return xy_rectangle_bouding_box(&hittable->xy_rectangle, bounding_box);
+    return xy_rectangle_bounding_box(&hittable->xy_rectangle, bounding_box);
+  case HITTABLE_XZ_RECTANGLE:
+    return xz_rectangle_bounding_box(&hittable->xz_rectangle, bounding_box);
+  case HITTABLE_YZ_RECTANGLE:
+    return yz_rectangle_bounding_box(&hittable->yz_rectangle, bounding_box);
   }
   return false;
 }

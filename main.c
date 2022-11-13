@@ -22,9 +22,10 @@
 #define SCENE_TWO_PERLIN_SPHERES 2
 #define SCENE_EARTH 3
 #define SCENE_SIMPLE_LIGHT 4
+#define SCENE_CORNELL_BOX 5
 
 #ifndef SCENE_SELECT
-#define SCENE_SELECT SCENE_SIMPLE_LIGHT
+#define SCENE_SELECT SCENE_CORNELL_BOX
 #endif
 
 static Color ray_color(Ray r, Color background_color, const Hittable *world,
@@ -186,6 +187,41 @@ static Hittable *simple_light(Arena *arena) {
   return world;
 }
 
+static Hittable *cornell_box(Arena *arena) {
+  Hittable *world = hittable_create_hittable_list(arena);
+
+  Material *red =
+      material_create_lambertian_color((Color){0.65, 0.05, 0.05}, arena);
+  Material *white =
+      material_create_lambertian_color((Color){0.73, 0.73, 0.73}, arena);
+  Material *green =
+      material_create_lambertian_color((Color){0.12, 0.45, 0.15}, arena);
+  Material *light =
+      material_create_diffuse_light_color((Color){15.0, 15.0, 15.0}, arena);
+
+  hittable_list_add(
+      &world->list,
+      hittable_create_yz_rectangle(0, 555, 0, 555, 555, green, arena), arena);
+  hittable_list_add(&world->list,
+                    hittable_create_yz_rectangle(0, 555, 0, 555, 0, red, arena),
+                    arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_xz_rectangle(213, 343, 227, 332, 554, light, arena),
+      arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_xz_rectangle(0, 555, 0, 555, 0, white, arena), arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_xz_rectangle(0, 555, 0, 555, 555, white, arena), arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_xy_rectangle(0, 555, 0, 555, 555, white, arena), arena);
+
+  return world;
+}
+
 int main(int argc, char *argv[]) {
   srand(time(0));
 
@@ -212,10 +248,9 @@ int main(int argc, char *argv[]) {
 
   /* Image parameters */
 
-  const double aspect_ratio = 16.0 / 9.0;
-  const int image_width = 400;
-  const int image_height = (int)(image_width / aspect_ratio);
-  const int samples_per_pixel = 400;
+  double aspect_ratio = 16.0 / 9.0;
+  int image_width = 400;
+  int samples_per_pixel = 400;
   const int max_depth = 50;
 
   Point3 look_from = {0.0, 0.0, 1.0};
@@ -260,8 +295,20 @@ int main(int argc, char *argv[]) {
   look_from = (Point3){26.0, 3.0, 6.0};
   look_at = (Point3){0.0, 2.0, 0.0};
   vfov = 20.0;
+#elif SCENE_SELECT == SCENE_CORNELL_BOX
+  world = cornell_box(&arena);
+  aspect_ratio = 1.0;
+  image_width = 600;
+  samples_per_pixel = 200;
+  background_color = (Color){0.0, 0.0, 0.0};
+  look_from = (Point3){278.0, 278.0, -800.0};
+  look_at = (Point3){278.0, 278.0, 0.0};
+  vfov = 40.0;
+#else
+#error Unknown scene selected
 #endif
 
+  int image_height = (int)(image_width / aspect_ratio);
   Vec3 up = {0.0, 1.0, 0.0};
 
   Camera camera;
