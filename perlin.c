@@ -84,3 +84,14 @@ double perlin_noise(const PerlinData *data, Point3 p) {
 
   return perlin_interp(c, u, v, w);
 }
+
+double perlin_turbulence(const PerlinData *data, Point3 p, int depth) {
+  double accum = 0.0;
+  double weight = 1.0;
+  for (int i = 0; i < depth; ++i) {
+    accum += weight * perlin_noise(data, p);
+    weight *= 0.5;
+    p = (Point3){2 * p.x, 2 * p.y, 2 * p.z};
+  }
+  return fabs(accum);
+}

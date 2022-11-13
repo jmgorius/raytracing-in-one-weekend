@@ -65,8 +65,9 @@ Color checker_value(const CheckerTexture *checker, double u, double v,
 
 Color perlin_value(const PerlinNoiseTexture *perlin, Point3 p) {
   double noise_value =
-      0.5 * (1.0 + perlin_noise(perlin->data, (Point3){perlin->scale * p.x,
-                                                       perlin->scale * p.y,
-                                                       perlin->scale * p.z}));
+      0.5 *
+      (1.0 + sin(perlin->scale * p.z +
+                 10 * perlin_turbulence(perlin->data, p,
+                                        PERLIN_DEFAULT_TURBULENCE_DEPTH)));
   return color_mul_const(noise_value, (Color){1.0, 1.0, 1.0});
 }
