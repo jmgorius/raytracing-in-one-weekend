@@ -219,14 +219,17 @@ static Hittable *cornell_box(Arena *arena) {
       &world->list,
       hittable_create_xy_rectangle(0, 555, 0, 555, 555, white, arena), arena);
 
-  hittable_list_add(&world->list,
-                    hittable_create_box((Point3){130, 0, 65},
-                                        (Point3){295, 165, 230}, white, arena),
-                    arena);
-  hittable_list_add(&world->list,
-                    hittable_create_box((Point3){265, 0, 295},
-                                        (Point3){430, 330, 460}, white, arena),
-                    arena);
+  Hittable *box1 = hittable_create_box((Point3){0, 0, 0},
+                                       (Point3){165, 330, 165}, white, arena);
+  box1 = hittable_create_y_rotation(box1, 15, arena);
+  box1 = hittable_create_translation(box1, (Vec3){265, 0, 295}, arena);
+  hittable_list_add(&world->list, box1, arena);
+
+  Hittable *box2 = hittable_create_box((Point3){0, 0, 0},
+                                       (Point3){165, 165, 165}, white, arena);
+  box2 = hittable_create_y_rotation(box2, -18, arena);
+  box2 = hittable_create_translation(box2, (Vec3){130, 0, 65}, arena);
+  hittable_list_add(&world->list, box2, arena);
 
   Hittable *bvh_root = hittable_create_bvh_node(
       world->list.objects, 0, world->list.size, 0.0, 1.0, arena);
@@ -310,7 +313,7 @@ int main(int argc, char *argv[]) {
   world = cornell_box(&arena);
   aspect_ratio = 1.0;
   image_width = 600;
-  samples_per_pixel = 200;
+  samples_per_pixel = 1000;
   background_color = (Color){0.0, 0.0, 0.0};
   look_from = (Point3){278.0, 278.0, -800.0};
   look_at = (Point3){278.0, 278.0, 0.0};

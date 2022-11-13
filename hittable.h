@@ -31,6 +31,8 @@ typedef enum HittableType {
   HITTABLE_XZ_RECTANGLE,
   HITTABLE_YZ_RECTANGLE,
   HITTABLE_BOX,
+  HITTABLE_TRANSLATION,
+  HITTABLE_Y_ROTATION,
 } HittableType;
 
 typedef struct Hittable Hittable;
@@ -81,6 +83,19 @@ typedef struct Box {
   Point3 max;
 } Box;
 
+typedef struct Translation {
+  const Hittable *ptr;
+  Vec3 offset;
+} Translation;
+
+typedef struct YRotation {
+  const Hittable *ptr;
+  double sin_theta;
+  double cos_theta;
+  bool has_box;
+  AABB bounding_box;
+} YRotation;
+
 struct Hittable {
   HittableType type;
   union {
@@ -92,6 +107,8 @@ struct Hittable {
     XZRectangle xz_rectangle;
     YZRectangle yz_rectangle;
     Box box;
+    Translation translation;
+    YRotation y_rotation;
   };
 };
 
@@ -115,6 +132,8 @@ Hittable *hittable_create_yz_rectangle(double y0, double y1, double z0,
                                        const Material *material, Arena *arena);
 Hittable *hittable_create_box(Point3 p0, Point3 p1, const Material *material,
                               Arena *arena);
+Hittable *hittable_create_translation(Hittable *ptr, Vec3 offset, Arena *arena);
+Hittable *hittable_create_y_rotation(Hittable *ptr, double angle, Arena *arena);
 
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record);

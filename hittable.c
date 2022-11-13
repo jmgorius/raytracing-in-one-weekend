@@ -8,6 +8,7 @@
 #include "vec3.h"
 
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -194,6 +195,60 @@ Hittable *hittable_create_box(Point3 p0, Point3 p1, const Material *material,
   return result;
 }
 
+Hittable *hittable_create_translation(Hittable *ptr, Vec3 offset,
+                                      Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_TRANSLATION;
+  result->translation.ptr = ptr;
+  result->translation.offset = offset;
+  return result;
+}
+
+Hittable *hittable_create_y_rotation(Hittable *ptr, double angle,
+                                     Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_Y_ROTATION;
+  result->y_rotation.ptr = ptr;
+
+  double radians = degrees_to_radians(angle);
+  double sin_theta = sin(radians);
+  double cos_theta = cos(radians);
+  result->y_rotation.sin_theta = sin_theta;
+  result->y_rotation.cos_theta = cos_theta;
+  result->y_rotation.has_box =
+      hittable_bounding_box(ptr, 0.0, 1.0, &result->y_rotation.bounding_box);
+
+  Point3 min = {DBL_MAX, DBL_MAX, DBL_MAX};
+  Point3 max = {-DBL_MAX, -DBL_MAX, -DBL_MAX};
+
+  for (int i = 0; i < 2; ++i) {
+    for (int j = 0; j < 2; ++j) {
+      for (int k = 0; k < 2; ++k) {
+        const AABB *bbox = &result->y_rotation.bounding_box;
+        double x = i * bbox->max.x + (1 - i) * bbox->min.x;
+        double y = j * bbox->max.y + (1 - j) * bbox->min.y;
+        double z = k * bbox->max.z + (1 - k) * bbox->min.z;
+
+        double new_x = cos_theta * x + sin_theta * z;
+        double new_z = -sin_theta * x + cos_theta * z;
+
+        min.x = fmin(min.x, new_x);
+        max.x = fmax(max.x, new_x);
+        min.y = fmin(min.y, y);
+        max.y = fmax(max.y, y);
+        min.z = fmin(min.z, new_z);
+        max.z = fmax(max.z, new_z);
+      }
+    }
+  }
+
+  result->y_rotation.bounding_box = (AABB){min, max};
+
+  return result;
+}
+
+/*===----------------------------------------------------------------------===*/
+
 static bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
                               double t_max, HitRecord *record) {
   bool hit_anything = false;
@@ -367,6 +422,53 @@ static bool box_hit(const Box *box, Ray r, double t_min, double t_max,
   return hittable_list_hit(&box->sides, r, t_min, t_max, record);
 }
 
+static bool translation_hit(const Translation *translation, Ray r, double t_min,
+                            double t_max, HitRecord *record) {
+  Ray moved_r = {point3_add(r.origin, vec3_neg(translation->offset)),
+                 r.direction, r.time};
+  if (!hittable_hit(translation->ptr, moved_r, t_min, t_max, record))
+    return false;
+
+  record->p = point3_add(record->p, translation->offset);
+  hit_record_set_face_normal(record, moved_r, record->normal);
+  return true;
+}
+
+static bool y_rotation_hit(const YRotation *rotation, Ray r, double t_min,
+                           double t_max, HitRecord *record) {
+  Point3 origin = {
+      rotation->cos_theta * r.origin.x - rotation->sin_theta * r.origin.z,
+      r.origin.y,
+      rotation->sin_theta * r.origin.x + rotation->cos_theta * r.origin.z,
+  };
+  Vec3 direction = {
+      rotation->cos_theta * r.direction.x - rotation->sin_theta * r.direction.z,
+      r.direction.y,
+      rotation->sin_theta * r.direction.x + rotation->cos_theta * r.direction.z,
+  };
+
+  Ray rotated_r = {origin, direction};
+  if (!hittable_hit(rotation->ptr, rotated_r, t_min, t_max, record))
+    return false;
+
+  record->p = (Point3){
+      rotation->cos_theta * record->p.x + rotation->sin_theta * record->p.z,
+      record->p.y,
+      -rotation->sin_theta * record->p.x + rotation->cos_theta * record->p.z,
+  };
+
+  Vec3 normal = {
+      rotation->cos_theta * record->normal.x +
+          rotation->sin_theta * record->normal.z,
+      record->normal.y,
+      -rotation->sin_theta * record->normal.x +
+          rotation->cos_theta * record->normal.z,
+  };
+  hit_record_set_face_normal(record, rotated_r, normal);
+
+  return true;
+}
+
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record) {
   switch (hittable->type) {
@@ -386,9 +488,15 @@ bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
     return yz_rectangle_hit(&hittable->yz_rectangle, r, t_min, t_max, record);
   case HITTABLE_BOX:
     return box_hit(&hittable->box, r, t_min, t_max, record);
+  case HITTABLE_TRANSLATION:
+    return translation_hit(&hittable->translation, r, t_min, t_max, record);
+  case HITTABLE_Y_ROTATION:
+    return y_rotation_hit(&hittable->y_rotation, r, t_min, t_max, record);
   }
   return false;
 }
+
+/*===----------------------------------------------------------------------===*/
 
 static bool hittable_list_bounding_box(const HittableList *list,
                                        double time_start, double time_end,
@@ -482,6 +590,24 @@ static bool box_bounding_box(const Box *box, AABB *bounding_box) {
   return true;
 }
 
+static bool translation_bounding_box(const Translation *translation,
+                                     double time_start, double time_end,
+                                     AABB *bounding_box) {
+  if (!hittable_bounding_box(translation->ptr, time_start, time_end,
+                             bounding_box))
+    return false;
+
+  *bounding_box = (AABB){point3_add(bounding_box->min, translation->offset),
+                         point3_add(bounding_box->max, translation->offset)};
+  return true;
+}
+
+static bool y_rotation_bounding_box(const YRotation *rotation,
+                                    AABB *bounding_box) {
+  *bounding_box = rotation->bounding_box;
+  return true;
+}
+
 bool hittable_bounding_box(const Hittable *hittable, double time_start,
                            double time_end, AABB *bounding_box) {
   switch (hittable->type) {
@@ -503,6 +629,11 @@ bool hittable_bounding_box(const Hittable *hittable, double time_start,
     return yz_rectangle_bounding_box(&hittable->yz_rectangle, bounding_box);
   case HITTABLE_BOX:
     return box_bounding_box(&hittable->box, bounding_box);
+  case HITTABLE_TRANSLATION:
+    return translation_bounding_box(&hittable->translation, time_start,
+                                    time_end, bounding_box);
+  case HITTABLE_Y_ROTATION:
+    return y_rotation_bounding_box(&hittable->y_rotation, bounding_box);
   }
   return false;
 }
