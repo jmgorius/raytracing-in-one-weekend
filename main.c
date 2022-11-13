@@ -219,7 +219,18 @@ static Hittable *cornell_box(Arena *arena) {
       &world->list,
       hittable_create_xy_rectangle(0, 555, 0, 555, 555, white, arena), arena);
 
-  return world;
+  hittable_list_add(&world->list,
+                    hittable_create_box((Point3){130, 0, 65},
+                                        (Point3){295, 165, 230}, white, arena),
+                    arena);
+  hittable_list_add(&world->list,
+                    hittable_create_box((Point3){265, 0, 295},
+                                        (Point3){430, 330, 460}, white, arena),
+                    arena);
+
+  Hittable *bvh_root = hittable_create_bvh_node(
+      world->list.objects, 0, world->list.size, 0.0, 1.0, arena);
+  return bvh_root;
 }
 
 int main(int argc, char *argv[]) {

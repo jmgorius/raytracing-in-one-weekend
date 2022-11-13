@@ -161,6 +161,39 @@ Hittable *hittable_create_yz_rectangle(double y0, double y1, double z0,
   return result;
 }
 
+Hittable *hittable_create_box(Point3 p0, Point3 p1, const Material *material,
+                              Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_BOX;
+  result->box.min = p0;
+  result->box.max = p1;
+  hittable_list_add(&result->box.sides,
+                    hittable_create_xy_rectangle(p0.x, p1.x, p0.y, p1.y, p0.z,
+                                                 material, arena),
+                    arena);
+  hittable_list_add(&result->box.sides,
+                    hittable_create_xy_rectangle(p0.x, p1.x, p0.y, p1.y, p1.z,
+                                                 material, arena),
+                    arena);
+  hittable_list_add(&result->box.sides,
+                    hittable_create_xz_rectangle(p0.x, p1.x, p0.z, p1.z, p0.y,
+                                                 material, arena),
+                    arena);
+  hittable_list_add(&result->box.sides,
+                    hittable_create_xz_rectangle(p0.x, p1.x, p0.z, p1.z, p1.y,
+                                                 material, arena),
+                    arena);
+  hittable_list_add(&result->box.sides,
+                    hittable_create_yz_rectangle(p0.y, p1.y, p0.z, p1.z, p0.x,
+                                                 material, arena),
+                    arena);
+  hittable_list_add(&result->box.sides,
+                    hittable_create_yz_rectangle(p0.y, p1.y, p0.z, p1.z, p1.x,
+                                                 material, arena),
+                    arena);
+  return result;
+}
+
 static bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
                               double t_max, HitRecord *record) {
   bool hit_anything = false;
@@ -329,6 +362,11 @@ static bool yz_rectangle_hit(const YZRectangle *rectangle, Ray r, double t_min,
   return true;
 }
 
+static bool box_hit(const Box *box, Ray r, double t_min, double t_max,
+                    HitRecord *record) {
+  return hittable_list_hit(&box->sides, r, t_min, t_max, record);
+}
+
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record) {
   switch (hittable->type) {
@@ -346,6 +384,8 @@ bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
     return xz_rectangle_hit(&hittable->xz_rectangle, r, t_min, t_max, record);
   case HITTABLE_YZ_RECTANGLE:
     return yz_rectangle_hit(&hittable->yz_rectangle, r, t_min, t_max, record);
+  case HITTABLE_BOX:
+    return box_hit(&hittable->box, r, t_min, t_max, record);
   }
   return false;
 }
@@ -437,6 +477,11 @@ static bool yz_rectangle_bounding_box(const YZRectangle *rectangle,
   return true;
 }
 
+static bool box_bounding_box(const Box *box, AABB *bounding_box) {
+  *bounding_box = (AABB){box->min, box->max};
+  return true;
+}
+
 bool hittable_bounding_box(const Hittable *hittable, double time_start,
                            double time_end, AABB *bounding_box) {
   switch (hittable->type) {
@@ -456,6 +501,8 @@ bool hittable_bounding_box(const Hittable *hittable, double time_start,
     return xz_rectangle_bounding_box(&hittable->xz_rectangle, bounding_box);
   case HITTABLE_YZ_RECTANGLE:
     return yz_rectangle_bounding_box(&hittable->yz_rectangle, bounding_box);
+  case HITTABLE_BOX:
+    return box_bounding_box(&hittable->box, bounding_box);
   }
   return false;
 }

@@ -30,6 +30,7 @@ typedef enum HittableType {
   HITTABLE_XY_RECTANGLE,
   HITTABLE_XZ_RECTANGLE,
   HITTABLE_YZ_RECTANGLE,
+  HITTABLE_BOX,
 } HittableType;
 
 typedef struct Hittable Hittable;
@@ -74,6 +75,12 @@ typedef struct YZRectangle {
   double y0, y1, z0, z1, k;
 } YZRectangle;
 
+typedef struct Box {
+  HittableList sides;
+  Point3 min;
+  Point3 max;
+} Box;
+
 struct Hittable {
   HittableType type;
   union {
@@ -84,6 +91,7 @@ struct Hittable {
     XYRectangle xy_rectangle;
     XZRectangle xz_rectangle;
     YZRectangle yz_rectangle;
+    Box box;
   };
 };
 
@@ -105,6 +113,8 @@ Hittable *hittable_create_xz_rectangle(double x0, double x1, double z0,
 Hittable *hittable_create_yz_rectangle(double y0, double y1, double z0,
                                        double z1, double k,
                                        const Material *material, Arena *arena);
+Hittable *hittable_create_box(Point3 p0, Point3 p1, const Material *material,
+                              Arena *arena);
 
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record);
