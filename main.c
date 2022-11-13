@@ -1,8 +1,9 @@
+#include <errno.h>
 #include <float.h>
-#include <math.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #include "arena.h"
 #include "camera.h"
@@ -185,8 +186,20 @@ static Hittable *simple_light(Arena *arena) {
   return world;
 }
 
-int main(void) {
-  srand(42);
+int main(int argc, char *argv[]) {
+  srand(time(0));
+
+  if (argc < 2) {
+    fprintf(stderr, "Expected output file name\n");
+    return 1;
+  }
+
+  FILE *output_file = fopen(argv[1], "wb");
+  if (!output_file) {
+    fprintf(stderr, "Failed to open output file %s: %s", argv[1],
+            strerror(errno));
+    return 1;
+  }
 
   /* Memory management */
 
@@ -255,7 +268,7 @@ int main(void) {
   camera_init(&camera, look_from, look_at, up, vfov, aspect_ratio, aperture,
               dist_to_focus, 0.0, 1.0);
 
-  printf("P3\n%u %u\n255\n", image_width, image_height);
+  fprintf(output_file, "P3\n%u %u\n255\n", image_width, image_height);
 
   for (int j = image_height - 1; j >= 0; --j) {
     fprintf(stderr, "\rScanlines remaining: %d      ", j);
@@ -268,29 +281,14 @@ int main(void) {
         pixel_color = color_add(
             pixel_color, ray_color(r, background_color, world, max_depth));
       }
-      color_write(stdout, pixel_color, samples_per_pixel);
+      color_write(output_file, pixel_color, samples_per_pixel);
     }
   }
 
   fprintf(stderr, "\nDone.\n");
 
   free(buffer);
+  fclose(output_file);
 
   return 0;
 }
-
-#include "aabb.c"
-#include "arena.c"
-#include "camera.c"
-#include "color.c"
-#include "hittable.c"
-#include "material.c"
-#include "perlin.c"
-#include "point3.c"
-#include "ray.c"
-#include "texture.c"
-#include "utils.c"
-#include "vec3.c"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "external/stb_image.h"

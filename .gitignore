@@ -1,12 +1,15 @@
 build/
+cmake-build-*/
 
 output.ppm
 
-.clangd/
 .cache/
+.clangd/
+.idea/
 .vs/
 .vscode/
 
+compile_commands.json
 compile_flags.txt
 
 vgcore.*
