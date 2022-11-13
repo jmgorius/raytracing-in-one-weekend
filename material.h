@@ -14,6 +14,7 @@ typedef enum MaterialType {
   MATERIAL_METAL,
   MATERIAL_DIELECTRIC,
   MATERIAL_DIFFUSE_LIGHT,
+  MATERIAL_ISOTROPIC,
 } MaterialType;
 
 typedef struct Lambertian {
@@ -33,6 +34,10 @@ typedef struct DiffuseLight {
   const Texture *emit;
 } DiffuseLight;
 
+typedef struct Isotropic {
+  const Texture *albedo;
+} Isotropic;
+
 typedef struct Material {
   MaterialType type;
   union {
@@ -40,6 +45,7 @@ typedef struct Material {
     Metal metal;
     Dielectric dielectric;
     DiffuseLight diffuse_light;
+    Isotropic isotropic;
   };
 } Material;
 
@@ -57,5 +63,6 @@ Material *material_create_metal_color(Color albedo, double fuzziness,
 Material *material_create_dielectric(double eta, Arena *arena);
 Material *material_create_diffuse_light(const Texture *emit, Arena *arena);
 Material *material_create_diffuse_light_color(Color color, Arena *arena);
+Material *material_create_isotropic(const Texture *albedo, Arena *arena);
 
 #endif /* INCLUDED_MATERIAL_H */

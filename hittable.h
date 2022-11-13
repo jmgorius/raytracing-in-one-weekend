@@ -33,6 +33,7 @@ typedef enum HittableType {
   HITTABLE_BOX,
   HITTABLE_TRANSLATION,
   HITTABLE_Y_ROTATION,
+  HITTABLE_CONSTANT_MEDIUM,
 } HittableType;
 
 typedef struct Hittable Hittable;
@@ -96,6 +97,12 @@ typedef struct YRotation {
   AABB bounding_box;
 } YRotation;
 
+typedef struct ConstantMedium {
+  const Hittable *boundary;
+  const Material *phase_function;
+  double neg_inv_density;
+} ConstantMedium;
+
 struct Hittable {
   HittableType type;
   union {
@@ -109,6 +116,7 @@ struct Hittable {
     Box box;
     Translation translation;
     YRotation y_rotation;
+    ConstantMedium constant_medium;
   };
 };
 
@@ -134,6 +142,11 @@ Hittable *hittable_create_box(Point3 p0, Point3 p1, const Material *material,
                               Arena *arena);
 Hittable *hittable_create_translation(Hittable *ptr, Vec3 offset, Arena *arena);
 Hittable *hittable_create_y_rotation(Hittable *ptr, double angle, Arena *arena);
+Hittable *hittable_create_constant_medium(Hittable *boundary, double density,
+                                          const Texture *phase, Arena *arena);
+Hittable *hittable_create_constant_medium_color(Hittable *boundary,
+                                                double density, Color albedo,
+                                                Arena *arena);
 
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record);

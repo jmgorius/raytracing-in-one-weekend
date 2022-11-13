@@ -70,6 +70,15 @@ static bool dielectric_scatter(const Dielectric *dielectric, Ray r,
   return true;
 }
 
+static bool isotropic_scatter(const Isotropic *isotropic, Ray r,
+                              const struct HitRecord *record,
+                              Color *attenuation, Ray *scattered) {
+  *scattered = (Ray){record->p, vec3_random_in_unit_sphere(), r.time};
+  *attenuation =
+      texture_value(isotropic->albedo, record->u, record->v, record->p);
+  return true;
+}
+
 bool material_scatter(const Material *material, Ray r,
                       const struct HitRecord *record, Color *attenuation,
                       Ray *scattered) {
@@ -84,6 +93,9 @@ bool material_scatter(const Material *material, Ray r,
                               scattered);
   case MATERIAL_DIFFUSE_LIGHT:
     return false;
+  case MATERIAL_ISOTROPIC:
+    return isotropic_scatter(&material->isotropic, r, record, attenuation,
+                             scattered);
   }
   return false;
 }
@@ -145,8 +157,13 @@ Material *material_create_diffuse_light(const Texture *emit, Arena *arena) {
 }
 
 Material *material_create_diffuse_light_color(Color color, Arena *arena) {
+  return material_create_diffuse_light(texture_create_solid_color(color, arena),
+                                       arena);
+}
+
+Material *material_create_isotropic(const Texture *albedo, Arena *arena) {
   Material *result = arena_alloc(arena, sizeof(Material));
-  result->type = MATERIAL_DIFFUSE_LIGHT;
-  result->diffuse_light.emit = texture_create_solid_color(color, arena);
+  result->type = MATERIAL_ISOTROPIC;
+  result->isotropic.albedo = albedo;
   return result;
 }

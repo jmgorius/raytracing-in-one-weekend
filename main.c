@@ -23,9 +23,10 @@
 #define SCENE_EARTH 3
 #define SCENE_SIMPLE_LIGHT 4
 #define SCENE_CORNELL_BOX 5
+#define SCENE_CORNELL_BOX_SMOKE 6
 
 #ifndef SCENE_SELECT
-#define SCENE_SELECT SCENE_CORNELL_BOX
+#define SCENE_SELECT SCENE_CORNELL_BOX_SMOKE
 #endif
 
 static Color ray_color(Ray r, Color background_color, const Hittable *world,
@@ -231,9 +232,60 @@ static Hittable *cornell_box(Arena *arena) {
   box2 = hittable_create_translation(box2, (Vec3){130, 0, 65}, arena);
   hittable_list_add(&world->list, box2, arena);
 
-  Hittable *bvh_root = hittable_create_bvh_node(
-      world->list.objects, 0, world->list.size, 0.0, 1.0, arena);
-  return bvh_root;
+  return world;
+}
+
+static Hittable *cornell_box_smoke(Arena *arena) {
+  Hittable *world = hittable_create_hittable_list(arena);
+
+  Material *red =
+      material_create_lambertian_color((Color){0.65, 0.05, 0.05}, arena);
+  Material *white =
+      material_create_lambertian_color((Color){0.73, 0.73, 0.73}, arena);
+  Material *green =
+      material_create_lambertian_color((Color){0.12, 0.45, 0.15}, arena);
+  Material *light =
+      material_create_diffuse_light_color((Color){7.0, 7.0, 7.0}, arena);
+
+  hittable_list_add(
+      &world->list,
+      hittable_create_yz_rectangle(0, 555, 0, 555, 555, green, arena), arena);
+  hittable_list_add(&world->list,
+                    hittable_create_yz_rectangle(0, 555, 0, 555, 0, red, arena),
+                    arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_xz_rectangle(113, 443, 127, 432, 554, light, arena),
+      arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_xz_rectangle(0, 555, 0, 555, 0, white, arena), arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_xz_rectangle(0, 555, 0, 555, 555, white, arena), arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_xy_rectangle(0, 555, 0, 555, 555, white, arena), arena);
+
+  Hittable *box1 = hittable_create_box((Point3){0, 0, 0},
+                                       (Point3){165, 330, 165}, white, arena);
+  box1 = hittable_create_y_rotation(box1, 15, arena);
+  box1 = hittable_create_translation(box1, (Vec3){265, 0, 295}, arena);
+  hittable_list_add(&world->list,
+                    hittable_create_constant_medium_color(
+                        box1, 0.01, (Color){0.0, 0.0, 0.0}, arena),
+                    arena);
+
+  Hittable *box2 = hittable_create_box((Point3){0, 0, 0},
+                                       (Point3){165, 165, 165}, white, arena);
+  box2 = hittable_create_y_rotation(box2, -18, arena);
+  box2 = hittable_create_translation(box2, (Vec3){130, 0, 65}, arena);
+  hittable_list_add(&world->list,
+                    hittable_create_constant_medium_color(
+                        box2, 0.01, (Color){1.0, 1.0, 1.0}, arena),
+                    arena);
+
+  return world;
 }
 
 int main(int argc, char *argv[]) {
@@ -315,6 +367,14 @@ int main(int argc, char *argv[]) {
   image_width = 600;
   samples_per_pixel = 1000;
   background_color = (Color){0.0, 0.0, 0.0};
+  look_from = (Point3){278.0, 278.0, -800.0};
+  look_at = (Point3){278.0, 278.0, 0.0};
+  vfov = 40.0;
+#elif SCENE_SELECT == SCENE_CORNELL_BOX_SMOKE
+  world = cornell_box_smoke(&arena);
+  aspect_ratio = 1.0;
+  image_width = 600;
+  samples_per_pixel = 200;
   look_from = (Point3){278.0, 278.0, -800.0};
   look_at = (Point3){278.0, 278.0, 0.0};
   vfov = 40.0;

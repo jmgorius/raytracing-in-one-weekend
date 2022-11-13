@@ -247,6 +247,24 @@ Hittable *hittable_create_y_rotation(Hittable *ptr, double angle,
   return result;
 }
 
+Hittable *hittable_create_constant_medium(Hittable *boundary, double density,
+                                          const Texture *phase, Arena *arena) {
+  Hittable *result = arena_alloc(arena, sizeof(Hittable));
+  result->type = HITTABLE_CONSTANT_MEDIUM;
+  result->constant_medium.boundary = boundary;
+  result->constant_medium.neg_inv_density = -1.0 / density;
+  result->constant_medium.phase_function =
+      material_create_isotropic(phase, arena);
+  return result;
+}
+
+Hittable *hittable_create_constant_medium_color(Hittable *boundary,
+                                                double density, Color albedo,
+                                                Arena *arena) {
+  return hittable_create_constant_medium(
+      boundary, density, texture_create_solid_color(albedo, arena), arena);
+}
+
 /*===----------------------------------------------------------------------===*/
 
 static bool hittable_list_hit(const HittableList *list, Ray r, double t_min,
@@ -469,6 +487,43 @@ static bool y_rotation_hit(const YRotation *rotation, Ray r, double t_min,
   return true;
 }
 
+static bool constant_medium_hit(const ConstantMedium *constant_medium, Ray r,
+                                double t_min, double t_max, HitRecord *record) {
+  /* TODO: Handle non-convex boundaries */
+
+  HitRecord record1, record2;
+  if (!hittable_hit(constant_medium->boundary, r, -DBL_MAX, DBL_MAX, &record1))
+    return false;
+  if (!hittable_hit(constant_medium->boundary, r, record1.t + 0.0001, DBL_MAX,
+                    &record2))
+    return false;
+
+  if (record1.t < t_min)
+    record1.t = t_min;
+  if (record2.t > t_max)
+    record2.t = t_max;
+
+  if (record1.t >= record2.t)
+    return false;
+
+  if (record1.t < 0)
+    record1.t = 0;
+
+  double ray_length = vec3_length(r.direction);
+  double distance_inside_boundary = (record2.t - record1.t) * ray_length;
+  double hit_distance = constant_medium->neg_inv_density * log(random_double());
+
+  if (hit_distance > distance_inside_boundary)
+    return false;
+
+  /* Arbitrary values */
+  record->normal = (Vec3){1.0, 0.0, 0.0};
+  record->front_face = true;
+
+  record->material = constant_medium->phase_function;
+  return true;
+}
+
 bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
                   HitRecord *record) {
   switch (hittable->type) {
@@ -492,6 +547,9 @@ bool hittable_hit(const Hittable *hittable, Ray r, double t_min, double t_max,
     return translation_hit(&hittable->translation, r, t_min, t_max, record);
   case HITTABLE_Y_ROTATION:
     return y_rotation_hit(&hittable->y_rotation, r, t_min, t_max, record);
+  case HITTABLE_CONSTANT_MEDIUM:
+    return constant_medium_hit(&hittable->constant_medium, r, t_min, t_max,
+                               record);
   }
   return false;
 }
@@ -608,6 +666,13 @@ static bool y_rotation_bounding_box(const YRotation *rotation,
   return true;
 }
 
+static bool constant_medium_bounding_box(const ConstantMedium *constant_medium,
+                                         double time_start, double time_end,
+                                         AABB *bounding_box) {
+  return hittable_bounding_box(constant_medium->boundary, time_start, time_end,
+                               bounding_box);
+}
+
 bool hittable_bounding_box(const Hittable *hittable, double time_start,
                            double time_end, AABB *bounding_box) {
   switch (hittable->type) {
@@ -634,6 +699,9 @@ bool hittable_bounding_box(const Hittable *hittable, double time_start,
                                     time_end, bounding_box);
   case HITTABLE_Y_ROTATION:
     return y_rotation_bounding_box(&hittable->y_rotation, bounding_box);
+  case HITTABLE_CONSTANT_MEDIUM:
+    return constant_medium_bounding_box(&hittable->constant_medium, time_start,
+                                        time_end, bounding_box);
   }
   return false;
 }
