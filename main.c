@@ -19,8 +19,9 @@
 #define SCENE_RANDOM 0
 #define SCENE_TWO_SPHERES 1
 #define SCENE_TWO_PERLIN_SPHERES 2
+#define SCENE_EARTH 3
 
-#define SCENE_SELECT SCENE_TWO_PERLIN_SPHERES
+#define SCENE_SELECT SCENE_EARTH
 
 static Color ray_color(Ray r, const Hittable *world, int depth) {
   if (depth <= 0)
@@ -143,6 +144,14 @@ static Hittable *two_perlin_spheres(Arena *arena) {
   return world;
 }
 
+static Hittable *earth(Arena *arena) {
+  Texture *earth_texture = texture_create_image("assets/earthmap.jpg", arena);
+  Material *earth_surface = material_create_lambertian(earth_texture, arena);
+  Hittable *globe = hittable_create_sphere((Point3){0.0, 0.0, 0.0}, 2.0,
+                                           earth_surface, arena);
+  return globe;
+}
+
 int main(void) {
   srand(42);
 
@@ -158,14 +167,14 @@ int main(void) {
   /* Image parameters */
 
   const double aspect_ratio = 16.0 / 9.0;
-  const int image_width = 400;
+  const int image_width = 1200;
   const int image_height = (int)(image_width / aspect_ratio);
-  const int samples_per_pixel = 100;
+  const int samples_per_pixel = 500;
   const int max_depth = 50;
 
   /* World */
 
-  Point3 look_from = {13.0, 2.0, 3.0};
+  Point3 look_from = {0.0, 0.0, 1.0};
   Point3 look_at = {0.0, 0.0, 0.0};
   double vfov = 40.0;
   double aperture = 0.0;
@@ -186,6 +195,11 @@ int main(void) {
   vfov = 20.0;
 #elif SCENE_SELECT == SCENE_TWO_PERLIN_SPHERES
   world = two_perlin_spheres(&arena);
+  look_from = (Point3){13.0, 2.0, 3.0};
+  look_at = (Point3){0.0, 0.0, 0.0};
+  vfov = 20.0;
+#elif SCENE_SELECT == SCENE_EARTH
+  world = earth(&arena);
   look_from = (Point3){13.0, 2.0, 3.0};
   look_at = (Point3){0.0, 0.0, 0.0};
   vfov = 20.0;
@@ -232,3 +246,6 @@ int main(void) {
 #include "texture.c"
 #include "utils.c"
 #include "vec3.c"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "external/stb_image.h"

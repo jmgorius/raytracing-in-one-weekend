@@ -5,3 +5,4 @@ C implementation of the [*Ray tracing in one week-end*](https://raytracing.githu
 ## Examples
 
 ![Ray tracing in one week-end book cover](examples/book-cover.png)
+![Earth](examples/earth.png)

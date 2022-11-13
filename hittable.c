@@ -192,7 +192,7 @@ bool hittable_list_bounding_box(const HittableList *list, double time_start,
 }
 
 static void get_sphere_uv(Point3 p, double *u, double *v) {
-  double theta = acos(-p.x);
+  double theta = acos(-p.y);
   double phi = atan2(-p.z, p.x) + M_PI;
   *u = phi / (2 * M_PI);
   *v = theta / M_PI;

@@ -10,6 +10,7 @@ typedef enum TextureType {
   TEXTURE_SOLID_COLOR,
   TEXTURE_CHECKER,
   TEXTURE_PERLIN_NOISE,
+  TEXTURE_IMAGE,
 } TextureType;
 
 typedef struct Texture Texture;
@@ -29,12 +30,19 @@ typedef struct PerlinNoiseTexture {
   double scale;
 } PerlinNoiseTexture;
 
+typedef struct ImageTexture {
+  unsigned char *data;
+  int width, height;
+  int bytes_per_scanline;
+} ImageTexture;
+
 struct Texture {
   TextureType type;
   union {
     SolidColor solid_color;
     CheckerTexture checker;
     PerlinNoiseTexture noise;
+    ImageTexture image;
   };
 };
 
@@ -45,14 +53,8 @@ Texture *texture_create_checker_solid_color(Color odd, Color even, double size,
                                             Arena *arena);
 Texture *texture_create_perlin_noise(double scale, int point_count,
                                      Arena *arena);
+Texture *texture_create_image(const char *filename, Arena *arena);
 
 Color texture_value(const Texture *texture, double u, double v, Point3 p);
-
-Color solid_color_value(const SolidColor *solid_color);
-
-Color checker_value(const CheckerTexture *checker, double u, double v,
-                    Point3 p);
-
-Color perlin_value(const PerlinNoiseTexture *perlin, Point3 p);
 
 #endif /* INCLUDED_TEXTURE_H */
