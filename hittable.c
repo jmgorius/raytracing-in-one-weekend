@@ -191,6 +191,13 @@ bool hittable_list_bounding_box(const HittableList *list, double time_start,
   return true;
 }
 
+static void get_sphere_uv(Point3 p, double *u, double *v) {
+  double theta = acos(-p.x);
+  double phi = atan2(-p.z, p.x) + M_PI;
+  *u = phi / (2 * M_PI);
+  *v = theta / M_PI;
+}
+
 bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
                 HitRecord *record) {
   Vec3 oc = point3_sub(r.origin, sphere->center);
@@ -214,6 +221,8 @@ bool sphere_hit(const Sphere *sphere, Ray r, double t_min, double t_max,
   Vec3 outward_normal =
       vec3_div(point3_sub(record->p, sphere->center), sphere->radius);
   hit_record_set_face_normal(record, r, outward_normal);
+  get_sphere_uv((Point3){outward_normal.x, outward_normal.y, outward_normal.z},
+                &record->u, &record->v);
   record->material = sphere->material;
   return true;
 }
@@ -270,6 +279,8 @@ bool moving_sphere_hit(const MovingSphere *sphere, Ray r, double t_min,
       vec3_div(point3_sub(record->p, moving_sphere_center(sphere, r.time)),
                sphere->radius);
   hit_record_set_face_normal(record, r, outward_normal);
+  get_sphere_uv((Point3){outward_normal.x, outward_normal.y, outward_normal.z},
+                &record->u, &record->v);
   record->material = sphere->material;
   return true;
 }

@@ -1,6 +1,7 @@
 #include "arena.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,6 +47,7 @@ void *arena_alloc_align(Arena *arena, size_t size, size_t alignment) {
     return ptr;
   }
 
+  fprintf(stderr, "Arena is out of memory");
   abort();
 }
 

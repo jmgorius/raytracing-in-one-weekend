@@ -15,6 +15,7 @@ typedef struct HitRecord {
   const Material *material;
   Point3 p;
   Vec3 normal;
+  double u, v;
   double t;
   bool front_face;
 } HitRecord;

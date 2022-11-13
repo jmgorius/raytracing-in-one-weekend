@@ -11,8 +11,14 @@
 #include "material.h"
 #include "point3.h"
 #include "ray.h"
+#include "texture.h"
 #include "utils.h"
 #include "vec3.h"
+
+#define SCENE_RANDOM 0
+#define SCENE_TWO_SPHERES 1
+
+#define SCENE_SELECT SCENE_TWO_SPHERES
 
 static Color ray_color(Ray r, const Hittable *world, int depth) {
   if (depth <= 0)
@@ -37,10 +43,11 @@ static Color ray_color(Ray r, const Hittable *world, int depth) {
 static const Hittable *generate_random_scene(Arena *arena) {
   Hittable *world = hittable_create_hittable_list(arena);
 
-  const Material *ground_material =
-      material_create_lambertian((Color){0.5, 0.5, 0.5}, arena);
-  const Hittable *ground_sphere = hittable_create_sphere((Point3){0.0, -1000.0, 0.0},
-                                                1000.0, ground_material, arena);
+  const Texture *checker = texture_create_checker_solid_color(
+      (Color){0.2, 0.3, 0.1}, (Color){0.9, 0.9, 0.9}, 10.0, arena);
+  const Material *ground_material = material_create_lambertian(checker, arena);
+  const Hittable *ground_sphere = hittable_create_sphere(
+      (Point3){0.0, -1000.0, 0.0}, 1000.0, ground_material, arena);
   hittable_list_add(&world->list, ground_sphere, arena);
 
   const Material *glass = material_create_dielectric(1.5, arena);
@@ -53,21 +60,21 @@ static const Hittable *generate_random_scene(Arena *arena) {
 
       if (vec3_length(point3_sub(center, (Point3){4.0, 0.2, 0.0})) > 0.9) {
         if (choose_material < 0.8) {
-          const Material *material = material_create_lambertian(
+          const Material *material = material_create_lambertian_color(
               color_mul(color_random(), color_random()), arena);
-          Point3 center2 = point3_add(
-              center, (Vec3){0, random_double_in_range(0.0, 0.5), 0});
-          const Hittable *sphere = hittable_create_moving_sphere(
-              center, center2, 0.0, 1.0, 0.2, material, arena);
+          const Hittable *sphere =
+              hittable_create_sphere(center, 0.2, material, arena);
           hittable_list_add(&world->list, sphere, arena);
         } else if (choose_material < 0.95) {
-          const Material *material =
-              material_create_metal(color_random_in_range(0.5, 1),
-                                    random_double_in_range(0.5, 1.0), arena);
-          const Hittable *sphere = hittable_create_sphere(center, 0.2, material, arena);
+          const Material *material = material_create_metal_color(
+              color_random_in_range(0.5, 1), random_double_in_range(0.5, 1.0),
+              arena);
+          const Hittable *sphere =
+              hittable_create_sphere(center, 0.2, material, arena);
           hittable_list_add(&world->list, sphere, arena);
         } else {
-          const Hittable *sphere = hittable_create_sphere(center, 0.2, glass, arena);
+          const Hittable *sphere =
+              hittable_create_sphere(center, 0.2, glass, arena);
           hittable_list_add(&world->list, sphere, arena);
         }
       }
@@ -75,9 +82,9 @@ static const Hittable *generate_random_scene(Arena *arena) {
   }
 
   const Material *lambertian =
-      material_create_lambertian((Color){0.4, 0.2, 0.1}, arena);
+      material_create_lambertian_color((Color){0.4, 0.2, 0.1}, arena);
   const Material *metal =
-      material_create_metal((Color){0.7, 0.6, 0.5}, 0.0, arena);
+      material_create_metal_color((Color){0.7, 0.6, 0.5}, 0.0, arena);
 
   const Hittable *sphere1 =
       hittable_create_sphere((Point3){0.0, 1.0, 0.0}, 1.0, glass, arena);
@@ -89,9 +96,28 @@ static const Hittable *generate_random_scene(Arena *arena) {
       hittable_create_sphere((Point3){4.0, 1.0, 0.0}, 1.0, metal, arena);
   hittable_list_add(&world->list, sphere3, arena);
 
-  Hittable *bvh_root = hittable_create_bvh_node(world->list.objects, 0, world->list.size,
-                                       0.0, 1.0, arena);
+  Hittable *bvh_root = hittable_create_bvh_node(
+      world->list.objects, 0, world->list.size, 0.0, 1.0, arena);
   return bvh_root;
+}
+
+static Hittable *two_spheres(Arena *arena) {
+  Hittable *world = hittable_create_hittable_list(arena);
+
+  Texture *checker = texture_create_checker_solid_color(
+      (Color){0.2, 0.3, 0.1}, (Color){0.9, 0.9, 0.9}, 10.0, arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_sphere((Point3){0.0, -10.0, 0.0}, 10.0,
+                             material_create_lambertian(checker, arena), arena),
+      arena);
+  hittable_list_add(
+      &world->list,
+      hittable_create_sphere((Point3){0.0, 10.0, 0.0}, 10.0,
+                             material_create_lambertian(checker, arena), arena),
+      arena);
+
+  return world;
 }
 
 int main(void) {
@@ -116,18 +142,31 @@ int main(void) {
 
   /* World */
 
-  const Hittable *world = generate_random_scene(&arena);
-
-  /* Camera */
-
   Point3 look_from = {13.0, 2.0, 3.0};
   Point3 look_at = {0.0, 0.0, 0.0};
-  Vec3 up = {0.0, 1.0, 0.0};
+  double vfov = 40.0;
+  double aperture = 0.0;
   double dist_to_focus = 10.0;
-  double aperture = 0.1;
+
+  const Hittable *world = 0;
+
+#if SCENE_SELECT == SCENE_RANDOM
+  world = generate_random_scene(&arena);
+  look_from = (Point3){13.0, 2.0, 3.0};
+  look_at = (Point3){0.0, 0.0, 0.0};
+  vfov = 20.0;
+  aperture = 0.1;
+#elif SCENE_SELECT == SCENE_TWO_SPHERES
+  world = two_spheres(&arena);
+  look_from = (Point3){13.0, 2.0, 3.0};
+  look_at = (Point3){0.0, 0.0, 0.0};
+  vfov = 20.0;
+#endif
+
+  Vec3 up = {0.0, 1.0, 0.0};
 
   Camera camera;
-  camera_init(&camera, look_from, look_at, up, 20, aspect_ratio, aperture,
+  camera_init(&camera, look_from, look_at, up, vfov, aspect_ratio, aperture,
               dist_to_focus, 0.0, 1.0);
 
   printf("P3\n%u %u\n255\n", image_width, image_height);
@@ -161,5 +200,6 @@ int main(void) {
 #include "material.c"
 #include "point3.c"
 #include "ray.c"
+#include "texture.c"
 #include "utils.c"
 #include "vec3.c"

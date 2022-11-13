@@ -23,11 +23,16 @@ bool material_scatter(const Material *material, Ray r,
   return false;
 }
 
-Material *material_create_lambertian(Color albedo, Arena *arena) {
+Material *material_create_lambertian(const Texture *albedo, Arena *arena) {
   Material *result = arena_alloc(arena, sizeof(Material));
   result->type = MATERIAL_LAMBERTIAN;
   result->lambertian.albedo = albedo;
   return result;
+}
+
+Material *material_create_lambertian_color(Color albedo, Arena *arena) {
+  return material_create_lambertian(texture_create_solid_color(albedo, arena),
+                                    arena);
 }
 
 bool lambertian_scatter(const Lambertian *lambertian, Ray r,
@@ -41,16 +46,24 @@ bool lambertian_scatter(const Lambertian *lambertian, Ray r,
     scatter_direction = record->normal;
 
   *scattered = (Ray){record->p, scatter_direction, r.time};
-  *attenuation = lambertian->albedo;
+  *attenuation =
+      texture_value(lambertian->albedo, record->u, record->v, record->p);
   return true;
 }
 
-Material *material_create_metal(Color albedo, double fuzziness, Arena *arena) {
+Material *material_create_metal(const Texture *albedo, double fuzziness,
+                                Arena *arena) {
   Material *result = arena_alloc(arena, sizeof(Material));
   result->type = MATERIAL_METAL;
   result->metal.albedo = albedo;
   result->metal.fuzziness = fuzziness;
   return result;
+}
+
+Material *material_create_metal_color(Color albedo, double fuzziness,
+                                      Arena *arena) {
+  return material_create_metal(texture_create_solid_color(albedo, arena),
+                               fuzziness, arena);
 }
 
 bool metal_scatter(const Metal *metal, Ray r, const struct HitRecord *record,
@@ -63,7 +76,7 @@ bool metal_scatter(const Metal *metal, Ray r, const struct HitRecord *record,
                vec3_mul(metal->fuzziness, vec3_random_in_unit_sphere())),
       r.time,
   };
-  *attenuation = metal->albedo;
+  *attenuation = texture_value(metal->albedo, record->u, record->v, record->p);
   return vec3_dot(scattered->direction, record->normal) > 0;
 }
 

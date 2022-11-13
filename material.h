@@ -2,8 +2,8 @@
 #define INCLUDED_MATERIAL_H
 
 #include "arena.h"
-#include "color.h"
 #include "ray.h"
+#include "texture.h"
 
 #include <stdbool.h>
 
@@ -16,11 +16,11 @@ typedef enum MaterialType {
 } MaterialType;
 
 typedef struct Lambertian {
-  Color albedo;
+  const Texture *albedo;
 } Lambertian;
 
 typedef struct Metal {
-  Color albedo;
+  const Texture *albedo;
   double fuzziness;
 } Metal;
 
@@ -41,12 +41,16 @@ bool material_scatter(const Material *material, Ray r,
                       const struct HitRecord *record, Color *attenuation,
                       Ray *scattered);
 
-Material *material_create_lambertian(Color albedo, Arena *arena);
+Material *material_create_lambertian(const Texture *albedo, Arena *arena);
+Material *material_create_lambertian_color(Color albedo, Arena *arena);
 bool lambertian_scatter(const Lambertian *lambertian, Ray r,
                         const struct HitRecord *record, Color *attenuation,
                         Ray *scattered);
 
-Material *material_create_metal(Color albedo, double fuzziness, Arena *arena);
+Material *material_create_metal(const Texture *albedo, double fuzziness,
+                                Arena *arena);
+Material *material_create_metal_color(Color albedo, double fuzziness,
+                                      Arena *arena);
 bool metal_scatter(const Metal *metal, Ray r, const struct HitRecord *record,
                    Color *attenuation, Ray *scattered);
 
