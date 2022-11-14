@@ -516,6 +516,9 @@ static bool constant_medium_hit(const ConstantMedium *constant_medium, Ray r,
   if (hit_distance > distance_inside_boundary)
     return false;
 
+  record->t += hit_distance / ray_length;
+  record->p = ray_at(r, record->t);
+
   /* Arbitrary values */
   record->normal = (Vec3){1.0, 0.0, 0.0};
   record->front_face = true;
