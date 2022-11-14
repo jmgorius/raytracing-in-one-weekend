@@ -323,7 +323,7 @@ const Hittable *complex_scene(Arena *arena) {
       hittable_create_sphere((Point3){220, 280, 300}, 80,
                              material_create_lambertian(
                                  texture_create_perlin_noise(
-                                     0.1, PERLIN_DEFAULT_POINT_COUNT, arena),
+                                     3.0, PERLIN_DEFAULT_POINT_COUNT, arena),
                                  arena),
                              arena),
       arena);
