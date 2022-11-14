@@ -349,5 +349,7 @@ const Hittable *complex_scene(Arena *arena) {
           (Vec3){-100, 270, 395}, arena),
       arena);
 
-  return objects;
+  Hittable *bvh_root = hittable_create_bvh_node(
+      objects->list.objects, 0, objects->list.size, 0.0, 1.0, arena);
+  return bvh_root;
 }
